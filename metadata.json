@@ -1,0 +1,6 @@
+{
+  "name": "Edufy Academy",
+  "description": "Premium online learning marketplace and learning management system featuring interactive courses, video player, quizzes, student & instructor dashboards, and verified certifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

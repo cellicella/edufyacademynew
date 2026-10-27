@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "./styles/design-tokens.css";
+
+@layer utilities {
+  .bg-edufy-primary {
+    background-color: var(--edufy-primary-blue);
+  }
+  .bg-edufy-secondary {
+    background-color: var(--edufy-secondary-blue);
+  }
+  .bg-edufy-purple {
+    background-color: var(--edufy-accent-purple);
+  }
+  .bg-edufy-bg {
+    background-color: var(--edufy-bg);
+  }
+  .text-edufy-primary {
+    color: var(--edufy-primary-blue);
+  }
+  .text-edufy-secondary {
+    color: var(--edufy-secondary-blue);
+  }
+  .text-edufy-purple {
+    color: var(--edufy-accent-purple);
+  }
+  .text-edufy-heading {
+    color: var(--edufy-text-primary);
+  }
+  .text-edufy-muted {
+    color: var(--edufy-text-secondary);
+  }
+  .border-edufy {
+    border-color: var(--edufy-border);
+  }
+}

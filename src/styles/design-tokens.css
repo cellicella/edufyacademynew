@@ -1,0 +1,134 @@
+:root {
+  /* Edufy Mandatory Brand Palette */
+  --edufy-primary-blue: #004AAD;
+  --edufy-secondary-blue: #5271FF;
+  --edufy-accent-purple: #5E17EB;
+  --edufy-bg: #F7F9FC;
+  --edufy-white: #FFFFFF;
+  --edufy-text-primary: #111827;
+  --edufy-text-secondary: #64748B;
+  --edufy-border: #E2E8F0;
+
+  /* Extended Semantic Tokens */
+  --edufy-surface: #FFFFFF;
+  --edufy-surface-subtle: #F1F5F9;
+  --edufy-primary-blue-hover: #003B8B;
+  --edufy-primary-blue-light: #EBF3FF;
+  --edufy-secondary-blue-hover: #3E5EE0;
+  --edufy-accent-purple-light: #F4EFFF;
+  --edufy-success: #10B981;
+  --edufy-success-light: #ECFDF5;
+  --edufy-warning: #F59E0B;
+  --edufy-warning-light: #FFFBEB;
+  --edufy-danger: #EF4444;
+  --edufy-danger-light: #FEF2F2;
+
+  /* Typography */
+  --font-display: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Radius & Shadows */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --shadow-subtle: 0 1px 3px rgba(17, 24, 39, 0.05), 0 1px 2px rgba(17, 24, 39, 0.03);
+  --shadow-card: 0 4px 6px -1px rgba(17, 24, 39, 0.05), 0 2px 4px -2px rgba(17, 24, 39, 0.05);
+  --shadow-hover: 0 12px 24px -4px rgba(0, 74, 173, 0.08), 0 4px 6px -2px rgba(17, 24, 39, 0.04);
+}
+
+body {
+  background-color: var(--edufy-bg);
+  color: var(--edufy-text-primary);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth Ambient Animations */
+@keyframes edufy-float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes edufy-float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes edufy-pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes edufy-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-float-slow {
+  animation: edufy-float-slow 6s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: edufy-float-reverse 7s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: edufy-pulse-glow 5s ease-in-out infinite;
+}
+
+/* Background Pattern Helpers */
+.bg-edufy-dots {
+  background-image: radial-gradient(rgba(0, 74, 173, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-edufy-grid-dark {
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-pulse-glow {
+    animation: none !important;
+  }
+}
