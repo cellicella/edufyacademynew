@@ -5,8 +5,9 @@
   Run it with PUSH-TO-GITHUB.cmd in the project folder (double-click), or:
     powershell -ExecutionPolicy Bypass -File production\github\push-to-github.ps1 -Message "What changed"
 
-  Website -> https://github.com/cellicella/edufyacademynew     (this whole project folder)
-  API     -> https://github.com/cellicella/edufyacademy-api    (generated from server.ts, server\ and the server tests)
+  Website -> https://github.com/cellicella/edufyacademy-website  (private; this whole project folder)
+  API     -> https://github.com/cellicella/edufyacademy-api      (private; generated from server.ts, server\ and the server tests)
+  Both repositories are created automatically (private) on the first run if they do not exist yet.
 
   Safety: .env files, keys, zips and build output are never committed (.gitignore), and the staged files are
   scanned for secrets before every commit. Nothing is pushed if the scan finds something.
@@ -14,7 +15,7 @@
 #>
 param(
   [string]$Message = '',
-  [string]$WebsiteRepo = 'https://github.com/cellicella/edufyacademynew.git',
+  [string]$WebsiteRepo = 'https://github.com/cellicella/edufyacademy-website.git',
   [string]$ApiRepo = 'https://github.com/cellicella/edufyacademy-api.git',
   [string]$Branch = 'main',
   [switch]$WebsiteOnly,
@@ -38,6 +39,59 @@ function Stop-Push([string]$Text) {
 function Invoke-Git {
   & git @args
   if ($LASTEXITCODE -ne 0) { Stop-Push ('git ' + ($args -join ' ') + ' failed (see the message above).') }
+}
+
+# ---------------------------------------------------------------- GitHub repositories
+# Uses the GitHub sign-in that Git for Windows stores (Git Credential Manager); the token stays in memory only.
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$script:GhToken = $null
+$script:GhLogin = $null
+
+function Invoke-GitHub([string]$Method, [string]$Path, $Body) {
+  $headers = @{ Authorization = ('token ' + $script:GhToken); Accept = 'application/vnd.github+json'; 'User-Agent' = 'edufy-push-script' }
+  $uri = 'https://api.github.com' + $Path
+  if ($Body) { return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers -Body ($Body | ConvertTo-Json) -ContentType 'application/json' }
+  return Invoke-RestMethod -Method $Method -Uri $uri -Headers $headers
+}
+
+function Connect-GitHub {
+  if ($script:GhToken) { return }
+  Write-Host '   signing in to GitHub (a browser window may open)...'
+  $cred = "protocol=https`nhost=github.com`n`n" | & git credential fill
+  foreach ($line in $cred) { if ($line -like 'password=*') { $script:GhToken = $line.Substring(9) } }
+  if (-not $script:GhToken) { Stop-Push 'GitHub sign-in did not complete. Run PUSH-TO-GITHUB.cmd again and finish the sign-in.' }
+  try { $me = Invoke-GitHub 'GET' '/user' $null }
+  catch {
+    $code = 0
+    if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+    if ($code -eq 401) {
+      ("protocol=https`nhost=github.com`n`n") | & git credential reject
+      Stop-Push 'GitHub did not accept the saved sign-in. It was cleared; run PUSH-TO-GITHUB.cmd again and sign in as cellicella.'
+    }
+    Stop-Push ('could not reach GitHub: ' + $_.Exception.Message)
+  }
+  ($cred -join "`n") + "`n`n" | & git credential approve
+  $script:GhLogin = $me.login
+  Ok ('signed in to GitHub as ' + $script:GhLogin)
+}
+
+function Confirm-Repository([string]$Url, [string]$Description) {
+  if ($Url -notmatch 'github\.com[/:]([^/]+)/([^/]+?)(\.git)?$') { return }
+  $owner = $Matches[1]; $name = $Matches[2]
+  Connect-GitHub
+  try {
+    $repo = Invoke-GitHub 'GET' ('/repos/' + $owner + '/' + $name) $null
+    Ok ('repository ' + $owner + '/' + $name + ' exists (private: ' + $repo.private + ')')
+    return
+  }
+  catch {
+    $code = 0
+    if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+    if ($code -ne 404) { Stop-Push ('could not check ' + $owner + '/' + $name + ' on GitHub: ' + $_.Exception.Message) }
+  }
+  if ($script:GhLogin -ne $owner) { Stop-Push ('you are signed in to GitHub as ' + $script:GhLogin + ', but the repository belongs to ' + $owner + '. Sign in as ' + $owner + '.') }
+  Invoke-GitHub 'POST' '/user/repos' @{ name = $name; private = $true; description = $Description; auto_init = $false } | Out-Null
+  Ok ('created the private repository ' + $owner + '/' + $name)
 }
 
 # Files that must never be committed, and secret-looking values in staged content.
@@ -105,6 +159,7 @@ Ok (& git --version)
 # ---------------------------------------------------------------- website
 if (-not $ApiOnly) {
   Step ('Website -> ' + $WebsiteRepo)
+  Confirm-Repository $WebsiteRepo 'Edufy Academy website (React + Vite), deployed to https://edufyacademy.com'
   if (-not (Test-Path (Join-Path $Root '.git'))) {
     Invoke-Git -C $Root init -q
     Invoke-Git -C $Root symbolic-ref HEAD ('refs/heads/' + $Branch)
@@ -114,7 +169,7 @@ if (-not $ApiOnly) {
   & git -C $Root remote get-url origin *> $null
   if ($LASTEXITCODE -ne 0) { Invoke-Git -C $Root remote add origin $WebsiteRepo } else { Invoke-Git -C $Root remote set-url origin $WebsiteRepo }
 
-  & git -C $Root fetch -q origin $Branch
+  & git -C $Root fetch -q origin $Branch 2>$null
   $remoteExists = ($LASTEXITCODE -eq 0)
   & git -C $Root rev-parse --verify -q HEAD *> $null
   $hasLocalCommits = ($LASTEXITCODE -eq 0)
@@ -129,11 +184,12 @@ if (-not $ApiOnly) {
 # ---------------------------------------------------------------- API
 if (-not $WebsiteOnly) {
   Step ('API -> ' + $ApiRepo)
+  Confirm-Repository $ApiRepo 'Edufy Academy API (Express), deployed to https://api.edufyacademy.com'
   $Work = Join-Path $env:TEMP 'edufyacademy-api-push'
   if (Test-Path $Work) { Remove-Item -Recurse -Force $Work }
   & git clone -q $ApiRepo $Work
   if ($LASTEXITCODE -ne 0) {
-    Stop-Push 'could not open the API repository. Create it first on https://github.com/new : name edufyacademy-api, Private, no README. Then run this again.'
+    Stop-Push 'could not download the API repository from GitHub (see the message above).'
   }
   & git -C $Work rev-parse --verify -q HEAD *> $null
   if ($LASTEXITCODE -ne 0) { Invoke-Git -C $Work symbolic-ref HEAD ('refs/heads/' + $Branch) }

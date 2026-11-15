@@ -5,7 +5,7 @@ version automatically (about 1–3 minutes).
 
 | | Website | API |
 |---|---|---|
-| GitHub | `cellicella/edufyacademynew` (this project folder) | `cellicella/edufyacademy-api` (private, generated from `server.ts`, `server/`, server tests) |
+| GitHub | `cellicella/edufyacademy-website` (private; this project folder) | `cellicella/edufyacademy-api` (private, generated from `server.ts`, `server/`, server tests) |
 | Hostinger site | `edufyacademy.com` | `api.edufyacademy.com` |
 | Hostinger app type | Node.js app, framework **Vite** (static output) | Node.js app, framework **Express** |
 | Node.js | 22 | 22 |
@@ -31,11 +31,14 @@ window (Git Credential Manager); after that it remembers the login.
 keystores, `google-services.json`, zips, `dist/`, `server-dist/`, `node_modules/`, `Claude outputs/`,
 `Edufy-Academy-Production/`. Secrets live only in hPanel (API), EAS (app) and your password manager.
 
-## One-time setup (already done unless noted)
-1. Create the private repository `edufyacademy-api` on https://github.com/new (no README). **Manual**
+## One-time setup
+1. Run `PUSH-TO-GITHUB.cmd` once: it creates both private repositories (if missing) and pushes. **Manual (your PC)**
 2. hPanel → connect GitHub (Hostinger GitHub app) with access to both repositories. **Manual**
 3. Connect each repository to its website with the settings above and auto-deploy from `main` (done by Claude
    through the Hostinger API once 1–2 are done).
+
+The old public repository `cellicella/edufyacademynew` is no longer used; archive or delete it on GitHub when you
+are ready.
 
 ## Rolling back
 hPanel → Websites → the site → Node.js → Deployments: redeploy an earlier build. Or revert the commit on GitHub;
