@@ -31,15 +31,12 @@ Edufy Academy is built with a modular, decoupled frontend architecture designed 
    - Instructor Studio with gross earnings, student roster, and course drafting modal.
    - Super-Admin Console with user governance, account suspension toggles, catalog compliance audits, and financial payout transaction reports.
 
-5. **Brand Design System**:
-   - Primary blue: `#004AAD`
-   - Secondary blue: `#5271FF`
-   - Accent purple: `#5E17EB`
-   - Background: `#F7F9FC`
-   - White: `#FFFFFF`
-   - Primary text: `#111827`
-   - Secondary text: `#64748B`
-   - Borders: `#E2E8F0`
+5. **Brand Design System — "Editorial Material"**:
+   - Colors: primary `#004AAD`, secondary `#5271FF`, accent `#5E17EB`, canvas `#F7F9FC`, surface `#FFFFFF`, ink `#111827`, muted `#64748B`
+   - Type: Manrope (display) + Inter (body); enlarged scale (body 18px, course titles 21–24px, section headings 36–44px, hero up to 68px)
+   - Shape: 12 / 16 / 20 / 24 / 32px radii, pill buttons (Material 3)
+   - Primitives in `src/index.css`: `.ed-btn` (+ `-filled`, `-tonal`, `-outlined`, `-text`), `.ed-field`, `.ed-chip`, `.ed-eyebrow`, `.ed-display`, `.ed-surface`, `.ed-frame`
+   - Signature motifs: numbered section markers, hairline index lists, inset "framed" imagery, ink spotlight bands
 
 ### PHP REST API & MySQL Roadmap:
 The centralized API service layer in `src/services/api.ts` connects to `VITE_API_BASE_URL` (defaulting to `/api/v1`), ready to switch seamlessly to live PHP REST endpoints via `VITE_USE_LIVE_API=true`.

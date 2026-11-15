@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartWishlist } from '../../context/CartWishlistContext';
+import { useSiteSettings } from '../../context/SettingsContext';
 import {
   ShoppingBag,
   X,
@@ -23,6 +24,9 @@ export const CartDrawer: React.FC = () => {
     initiateCartCheckout,
     isProcessingPayment,
   } = useCartWishlist();
+  const { settings } = useSiteSettings();
+  const gateway = settings.payment.displayName || 'Razorpay';
+  const paymentsOff = settings.payment.enabled === false;
   const navigate = useNavigate();
 
   if (!isCartOpen) return null;
@@ -90,7 +94,7 @@ export const CartDrawer: React.FC = () => {
                     setIsCartOpen(false);
                     navigate('/courses');
                   }}
-                  className="px-5 py-2.5 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl shadow-xs transition-colors"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow-xs transition-colors"
                 >
                   Browse Marketplace
                 </button>
@@ -110,14 +114,14 @@ export const CartDrawer: React.FC = () => {
                     />
 
                     <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-bold text-[#004AAD] uppercase tracking-wider block">
+                      <span className="text-[12px] font-bold text-[#004AAD] uppercase tracking-wider block">
                         {item.category}
                       </span>
                       <h4 className="text-xs font-bold text-[#111827] line-clamp-2 leading-snug">
                         {item.title}
                       </h4>
                       {item.instructorName && (
-                        <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                        <p className="text-[13px] text-[#64748B] truncate mt-0.5">
                           By {item.instructorName}
                         </p>
                       )}
@@ -128,7 +132,7 @@ export const CartDrawer: React.FC = () => {
                             ${item.price.toFixed(2)}
                           </span>
                           {item.originalPrice && item.originalPrice > item.price && (
-                            <span className="text-[11px] text-[#64748B] line-through tabular-nums">
+                            <span className="text-[13px] text-[#64748B] line-through tabular-nums">
                               ${item.originalPrice.toFixed(2)}
                             </span>
                           )}
@@ -150,7 +154,7 @@ export const CartDrawer: React.FC = () => {
                 <div className="pt-2 flex justify-end">
                   <button
                     onClick={clearCart}
-                    className="text-[11px] text-[#64748B] hover:text-rose-600 transition-colors"
+                    className="text-[13px] text-[#64748B] hover:text-rose-600 transition-colors"
                   >
                     Clear all items
                   </button>
@@ -182,28 +186,32 @@ export const CartDrawer: React.FC = () => {
                     <span className="font-display text-2xl font-extrabold text-[#111827] tabular-nums">
                       ${cartSubtotal.toFixed(2)}
                     </span>
-                    <span className="text-[10px] text-[#64748B] block">
-                      ≈ ₹{(cartSubtotal * 83).toFixed(0)} INR via Razorpay
+                    <span className="text-[12px] text-[#64748B] block">
+                      ≈ ₹{(cartSubtotal * 83).toFixed(0)} INR via {gateway}
                     </span>
                   </div>
                 </div>
               </div>
 
+              {paymentsOff && (
+                <p className="text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">Online payments are temporarily unavailable. Please try again later or contact support.</p>
+              )}
+              {!paymentsOff && settings.payment.instructions && <p className="text-[12.5px] text-[#64748B]">{settings.payment.instructions}</p>}
               <button
                 onClick={handleCheckout}
-                disabled={isProcessingPayment}
-                className="w-full py-3.5 px-4 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] disabled:opacity-75 disabled:cursor-not-allowed rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
+                disabled={isProcessingPayment || paymentsOff}
+                className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] disabled:opacity-75 disabled:cursor-not-allowed rounded-full shadow-md transition-colors flex items-center justify-center gap-2"
               >
                 <Lock className="w-4 h-4" />
                 <span>
                   {isProcessingPayment
                     ? 'Processing Payment...'
-                    : `Checkout with Razorpay (${cartCount})`}
+                    : `Checkout with ${gateway} (${cartCount})`}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <div className="flex items-center justify-center gap-4 text-[11px] text-[#64748B] pt-1">
+              <div className="flex items-center justify-center gap-4 text-[13px] text-[#64748B] pt-1">
                 <div className="flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span>256-Bit SSL Encrypted</span>

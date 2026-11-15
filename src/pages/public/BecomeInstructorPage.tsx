@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCartWishlist } from '../../context/CartWishlistContext';
-import { courseService } from '../../services/api';
+import { courseService, getMyInstructorApplication, InstructorApplication } from '../../services/api';
 import {
   GraduationCap,
   Sparkles,
@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   ArrowRight,
   ShieldCheck,
+  Clock,
+  XCircle,
 } from 'lucide-react';
 
 export const BecomeInstructorPage: React.FC = () => {
@@ -20,14 +22,29 @@ export const BecomeInstructorPage: React.FC = () => {
   const { showToast } = useCartWishlist();
   const navigate = useNavigate();
 
-  const [headline, setHeadline] = useState(currentUser?.headline || 'Lead Software Instructor');
-  const [bio, setBio] = useState(
-    currentUser?.bio ||
-      'Passionate engineer and educator with 8+ years building enterprise systems and teaching practical engineering.'
-  );
-  const [expertise, setExpertise] = useState('Full Stack Web Development');
+  const [headline, setHeadline] = useState('');
+  const [bio, setBio] = useState(currentUser?.bio || '');
+  const [expertise, setExpertise] = useState('');
+  const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [application, setApplication] = useState<InstructorApplication | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    getMyInstructorApplication().then((app) => {
+      setApplication(app);
+      if (app) {
+        setHeadline(app.headline || '');
+        setBio(app.bio || '');
+        setExpertise(app.expertise || '');
+        setWebsite(app.website || '');
+      }
+    });
+  }, [currentUser]);
+
+  const isPending = !success && application?.status === 'pending' && !!application.headline && application.headline !== 'Aspiring instructor';
+  const isRejected = application?.status === 'rejected';
 
   const isAlreadyInstructor = role === 'instructor' || role === 'admin';
 
@@ -41,18 +58,9 @@ export const BecomeInstructorPage: React.FC = () => {
 
     try {
       setLoading(true);
-      const res = await courseService.applyToBecomeInstructor({
-        headline,
-        bio,
-      });
-
+      const res = await courseService.applyToBecomeInstructor({ headline, bio, expertise, website });
       setSuccess(true);
-      showToast(res.message || 'Instructor privileges activated!', 'success');
-
-      // Reload or refresh auth
-      setTimeout(() => {
-        window.location.href = '/instructor/courses/new';
-      }, 1500);
+      showToast(res.message || 'Application submitted for review.', 'success');
     } catch (err: any) {
       console.error('Instructor application error:', err);
       showToast(err.message || 'Failed to submit application.', 'error');
@@ -127,7 +135,7 @@ export const BecomeInstructorPage: React.FC = () => {
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Link
                   to="/instructor/courses/new"
-                  className="w-full sm:w-auto px-6 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl shadow transition-colors flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2"
                 >
                   <Video className="w-4 h-4" />
                   <span>Launch Course Creator</span>
@@ -140,17 +148,19 @@ export const BecomeInstructorPage: React.FC = () => {
                 </Link>
               </div>
             </div>
-          ) : success ? (
+          ) : success || isPending ? (
             <div className="text-center space-y-4">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-6 h-6" />
+              <div className="w-14 h-14 bg-[#E8EFFB] text-[#004AAD] rounded-full flex items-center justify-center mx-auto">
+                {success ? <CheckCircle2 className="w-7 h-7" /> : <Clock className="w-7 h-7" />}
               </div>
-              <h2 className="font-display text-xl font-bold text-[#111827]">
-                Welcome to the Edufy Faculty!
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Your instructor account has been created. Redirecting you to the Course Creator studio...
+              <h2 className="font-display text-2xl font-bold text-[#111827]">Application under review</h2>
+              <p className="text-base text-[#64748B] max-w-md mx-auto">
+                Thanks for applying! An Edufy administrator will review your profile. Once approved, the Instructor Studio
+                unlocks automatically the next time you sign in.
               </p>
+              <button type="button" onClick={() => { setSuccess(false); setApplication(application ? { ...application, headline: '' } : null); }} className="ed-btn ed-btn-text ed-btn-sm">
+                Edit my application
+              </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -159,9 +169,20 @@ export const BecomeInstructorPage: React.FC = () => {
                   Instructor Application & Profile Setup
                 </h2>
                 <p className="text-xs text-[#64748B] mt-0.5">
-                  Complete your instructor bio to start creating your curriculum right away.
+                  Tell us about your experience. Applications are reviewed by the Edufy team before the Instructor Studio is unlocked.
                 </p>
               </div>
+
+              {isRejected && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-800 flex gap-3">
+                  <XCircle className="w-5 h-5 shrink-0" />
+                  <div>
+                    <div className="font-semibold">Your previous application was not approved.</div>
+                    {application?.admin_note && <div className="mt-1">Reviewer note: {application.admin_note}</div>}
+                    <div className="mt-1">You can update your details and apply again.</div>
+                  </div>
+                </div>
+              )}
 
               {!currentUser && (
                 <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center justify-between">
@@ -214,15 +235,26 @@ export const BecomeInstructorPage: React.FC = () => {
                     className="w-full px-3.5 py-2 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg focus:outline-none focus:border-[#004AAD] text-[#111827]"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#111827] mb-1">Portfolio, LinkedIn or sample lesson link</label>
+                  <input
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://"
+                    className="w-full px-3.5 py-2 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg focus:outline-none focus:border-[#004AAD] text-[#111827]"
+                  />
+                </div>
               </div>
 
               <div className="pt-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 px-4 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl shadow transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-2.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <span>{loading ? 'Activating Profile...' : 'Activate Instructor Studio'}</span>
+                  <span>{loading ? 'Submitting…' : 'Submit application'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

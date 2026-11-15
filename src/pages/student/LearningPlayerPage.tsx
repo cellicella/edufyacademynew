@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { courseService, certificateService, storageService } from '../../services/api';
 import { Course, Lesson, CourseSection, Certificate } from '../../types';
 import { useCourseProgress } from '../../context/CourseProgressContext';
+import { AdiloPlayer } from '../../components/student/AdiloPlayer';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { EdufyLogo } from '../../components/common/EdufyLogo';
 import {
@@ -51,6 +52,7 @@ export const LearningPlayerPage: React.FC = () => {
     isLessonCompleted,
     toggleLessonComplete,
     markLessonComplete,
+    setLessonCompletedLocal,
     getCourseProgressPercent,
     addNote,
     getNotes,
@@ -113,10 +115,10 @@ export const LearningPlayerPage: React.FC = () => {
     }
   };
 
-  const handleDownloadResource = async (filename: string) => {
+  const handleDownloadResource = async (storagePath: string, filename: string) => {
     if (!course) return;
-    showToast(`Requesting signed download token from storage bucket...`, 'info');
-    const signedUrl = await storageService.getDownloadUrl(course.id, filename);
+    showToast('Preparing your download…', 'info');
+    const signedUrl = await storageService.getDownloadUrl(course.id, storagePath);
     if (signedUrl) {
       showToast('Resource download started', 'success');
       const a = document.createElement('a');
@@ -126,7 +128,7 @@ export const LearningPlayerPage: React.FC = () => {
       a.click();
       document.body.removeChild(a);
     } else {
-      showToast('Resource downloaded from course materials', 'info');
+      showToast('Download unavailable — you may not have access to this resource.', 'error');
     }
   };
 
@@ -143,6 +145,10 @@ export const LearningPlayerPage: React.FC = () => {
   };
 
   const handleToggleComplete = () => {
+    if ((currentLesson.adiloFileId || currentLesson.adiloEmbedUrl) && !isLessonCompleted(course.id, currentLesson.id)) {
+      showToast('Video lessons complete automatically after you watch at least 90% of the video.', 'info');
+      return;
+    }
     toggleLessonComplete(course.id, currentLesson.id);
   };
 
@@ -210,7 +216,7 @@ export const LearningPlayerPage: React.FC = () => {
                 <button
                   onClick={() => initiateCourseEnrollment(course)}
                   disabled={isProcessingPayment}
-                  className="px-6 py-3 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2 mx-auto"
+                  className="px-6 py-3 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors shadow-lg flex items-center justify-center gap-2 mx-auto"
                 >
                   <Lock className="w-4 h-4" />
                   <span>{isProcessingPayment ? 'Processing...' : `Enroll Now via Razorpay ($${course.price.toFixed(2)})`}</span>
@@ -232,6 +238,16 @@ export const LearningPlayerPage: React.FC = () => {
                   Start Module Quiz Now
                 </button>
               </div>
+            ) : currentLesson.adiloFileId || currentLesson.adiloEmbedUrl ? (
+              <AdiloPlayer
+                key={currentLesson.id}
+                lessonId={currentLesson.id}
+                title={currentLesson.title}
+                onCompleted={() => {
+                  setLessonCompletedLocal(course.id, currentLesson.id);
+                  showToast('Lesson complete — great work!', 'success');
+                }}
+              />
             ) : (
               <>
                 {/* Simulated High-Res Video Canvas */}
@@ -291,7 +307,7 @@ export const LearningPlayerPage: React.FC = () => {
                         {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
 
-                      <span className="text-[11px] text-slate-300 tabular-nums">
+                      <span className="text-[13px] text-slate-300 tabular-nums">
                         {Math.floor((currentLesson.durationMinutes * (videoProgress / 100)))}:12 / {currentLesson.durationMinutes}:00
                       </span>
                     </div>
@@ -304,7 +320,7 @@ export const LearningPlayerPage: React.FC = () => {
                           const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
                           setPlaybackSpeed(next);
                         }}
-                        className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-200 hover:text-white"
+                        className="text-[13px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-200 hover:text-white"
                       >
                         {playbackSpeed}
                       </button>
@@ -377,7 +393,7 @@ export const LearningPlayerPage: React.FC = () => {
                       <span className="text-xs uppercase font-extrabold tracking-wider text-amber-300">
                         Milestone Achieved
                       </span>
-                      <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">100% Complete</span>
+                      <span className="text-[12px] bg-white/20 px-2 py-0.5 rounded-full font-bold">100% Complete</span>
                     </div>
                     <h3 className="font-display text-base font-bold text-white mt-0.5">
                       Ready to Claim Official Certificate
@@ -423,7 +439,7 @@ export const LearningPlayerPage: React.FC = () => {
 
             {/* Tab: Overview */}
             {activeTab === 'overview' && (
-              <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-4">
+              <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-4">
                 <h3 className="font-display text-sm font-bold text-[#111827]">
                   About This Lesson
                 </h3>
@@ -443,7 +459,7 @@ export const LearningPlayerPage: React.FC = () => {
 
             {/* Tab: Notes */}
             {activeTab === 'notes' && (
-              <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-6">
                 <h3 className="font-display text-sm font-bold text-[#111827]">
                   Your Personal Study Notes
                 </h3>
@@ -457,7 +473,7 @@ export const LearningPlayerPage: React.FC = () => {
                   ></textarea>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg flex items-center gap-1.5"
+                    className="px-4 py-2 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Save Note</span>
@@ -470,7 +486,7 @@ export const LearningPlayerPage: React.FC = () => {
                   ) : (
                     notes.map((n) => (
                       <div key={n.id} className="p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg space-y-1 text-xs">
-                        <div className="flex items-center justify-between text-[#64748B] text-[11px]">
+                        <div className="flex items-center justify-between text-[#64748B] text-[13px]">
                           <span className="font-semibold text-[#004AAD]">Timestamp Note</span>
                           <span>{n.createdAt}</span>
                         </div>
@@ -484,39 +500,43 @@ export const LearningPlayerPage: React.FC = () => {
 
             {/* Tab: Resources */}
             {activeTab === 'resources' && (
-              <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-4">
-                <h3 className="font-display text-sm font-bold text-[#111827]">
-                  Lesson Code & Resources
-                </h3>
-                <div className="space-y-2">
-                  <div className="p-3 border border-[#E2E8F0] rounded-lg flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <FileText className="w-4 h-4 text-[#004AAD]" />
-                      <div>
-                        <span className="font-semibold text-[#111827]">Lecture-03-SourceCode.zip</span>
-                        <span className="text-[11px] text-[#64748B] block">Starter project repository · 2.4 MB</span>
+              <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-4">
+                <h3 className="font-display text-lg font-bold text-[#111827]">Downloads for this lesson</h3>
+                {(currentLesson.resources || []).length === 0 ? (
+                  <p className="text-sm text-[#64748B]">This lesson has no downloadable resources.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(currentLesson.resources || []).map((r) => (
+                      <div key={r.id} className="p-3 border border-[#E2E8F0] rounded-xl flex items-center justify-between gap-3 text-sm">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <FileText className="w-4 h-4 text-[#004AAD] shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-[#111827] block truncate">{r.name}</span>
+                            <span className="text-[13px] text-[#64748B]">{r.size}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => (r.storagePath ? handleDownloadResource(r.storagePath, r.name) : r.downloadUrl && window.open(r.downloadUrl, '_blank', 'noopener'))}
+                          className="ed-btn ed-btn-tonal ed-btn-sm shrink-0"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Download</span>
+                        </button>
                       </div>
-                    </div>
-                    <button
-                      onClick={() => handleDownloadResource('Lecture-03-SourceCode.zip')}
-                      className="px-3 py-1.5 text-xs font-semibold text-[#004AAD] bg-[#EBF3FF] rounded hover:bg-blue-100 flex items-center gap-1"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download</span>
-                    </button>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             )}
 
             {/* Tab: QA */}
             {activeTab === 'qa' && (
-              <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-4">
+              <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-sm font-bold text-[#111827]">
                     Lesson Q&A & Mentorship
                   </h3>
-                  <span className="text-[11px] text-[#64748B]">Instructor Mentorship</span>
+                  <span className="text-[13px] text-[#64748B]">Instructor Mentorship</span>
                 </div>
 
                 <div className="p-6 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] text-center text-xs text-[#64748B] space-y-2">
@@ -528,12 +548,12 @@ export const LearningPlayerPage: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Ask a question about this lesson..."
-                      className="flex-1 p-2 bg-white border border-[#E2E8F0] rounded-lg text-xs text-[#111827] focus:outline-none focus:border-[#004AAD]"
+                      className="flex-1 p-2 bg-white border border-[#E2E8F0] rounded-xl text-xs text-[#111827] focus:outline-none focus:border-[#004AAD]"
                     />
                     <button
                       type="button"
                       onClick={() => showToast('Question submitted to instructor queue', 'success')}
-                      className="px-3.5 py-2 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors whitespace-nowrap"
+                      className="px-3.5 py-2 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors whitespace-nowrap"
                     >
                       Post Question
                     </button>
@@ -596,6 +616,10 @@ export const LearningPlayerPage: React.FC = () => {
                             <div
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if ((lesson.adiloFileId || lesson.adiloEmbedUrl) && !isLessonCompleted(course.id, lesson.id)) {
+                                  showToast('Video lessons complete automatically after you watch at least 90% of the video.', 'info');
+                                  return;
+                                }
                                 toggleLessonComplete(course.id, lesson.id);
                               }}
                               className="mt-0.5"
@@ -611,7 +635,7 @@ export const LearningPlayerPage: React.FC = () => {
                               <p className={`text-xs ${isCurrent ? 'font-bold' : 'font-medium'} truncate`}>
                                 {lesson.title}
                               </p>
-                              <div className="text-[11px] text-[#64748B] flex items-center gap-2 mt-0.5">
+                              <div className="text-[13px] text-[#64748B] flex items-center gap-2 mt-0.5">
                                 <span>{lesson.durationMinutes}m</span>
                                 <span>·</span>
                                 <span className="capitalize">{lesson.type}</span>
@@ -653,9 +677,9 @@ export const LearningPlayerPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50/50 rounded-xl border border-[#E2E8F0] space-y-4 text-center">
+            <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50/50 rounded-2xl border border-[#E2E8F0] space-y-4 text-center">
               <EdufyLogo size="sm" className="justify-center" />
-              <div className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider">
+              <div className="text-[12px] uppercase font-bold text-[#64748B] tracking-wider">
                 Certificate Identifier: <span className="font-mono text-[#004AAD]">{claimedCert.certificateCode}</span>
               </div>
               <div className="font-display text-lg font-bold text-[#004AAD]">
@@ -663,7 +687,7 @@ export const LearningPlayerPage: React.FC = () => {
               </div>
               <p className="text-xs text-[#64748B]">has demonstrated verified mastery in</p>
               <div className="font-bold text-sm text-[#111827]">{claimedCert.courseTitle}</div>
-              <div className="pt-2 text-[11px] text-[#64748B] flex justify-center gap-6 border-t border-[#E2E8F0]">
+              <div className="pt-2 text-[13px] text-[#64748B] flex justify-center gap-6 border-t border-[#E2E8F0]">
                 <span>Issued: <strong>{claimedCert.issueDate}</strong></span>
                 <span>Score: <strong className="text-emerald-600">{claimedCert.gradeScore}%</strong></span>
               </div>
@@ -683,7 +707,7 @@ export const LearningPlayerPage: React.FC = () => {
                   setShowCertModal(false);
                   navigate('/student/certificates');
                 }}
-                className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors"
               >
                 View in My Certificates
               </button>

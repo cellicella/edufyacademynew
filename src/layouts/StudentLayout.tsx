@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EdufyLogo } from '../components/common/EdufyLogo';
-import { RoleSwitcher } from '../components/common/RoleSwitcher';
 import { ToastContainer } from '../components/common/ToastContainer';
 import { CartDrawer } from '../components/common/CartDrawer';
 import { useAuth } from '../context/AuthContext';
@@ -40,7 +39,7 @@ export const StudentLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F9FC] flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-[#E2E8F0] shrink-0">
+      <aside className="hidden md:flex flex-col w-72 bg-white border-r border-[#E2E8F0] shrink-0">
         <div className="p-5 border-b border-[#E2E8F0]">
           <EdufyLogo size="md" />
         </div>
@@ -55,7 +54,7 @@ export const StudentLayout: React.FC = () => {
           />
           <div className="min-w-0 flex-1">
             <h4 className="text-xs font-bold text-[#111827] truncate">{currentUser?.name || 'Student'}</h4>
-            <span className="text-[11px] text-[#64748B] block truncate">Student Account</span>
+            <span className="text-[13px] text-[#64748B] block truncate">Student Account</span>
           </div>
         </div>
 
@@ -68,10 +67,10 @@ export const StudentLayout: React.FC = () => {
               <Link
                 key={item.href}
                 to={item.href}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`flex items-center justify-between px-4 h-12 rounded-full text-[15px] font-semibold transition-colors ${
                   isActive
-                    ? 'bg-[#EBF3FF] text-[#004AAD]'
-                    : 'text-[#64748B] hover:text-[#111827] hover:bg-[#F8FAFC]'
+                    ? 'bg-[#E8EFFB] text-[#003B8B]'
+                    : 'text-[#475569] hover:text-[#111827] hover:bg-[#F7F9FC]'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -79,8 +78,8 @@ export const StudentLayout: React.FC = () => {
                   <span>{item.label}</span>
                 </div>
                 {item.count !== undefined && item.count > 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    isActive ? 'bg-[#004AAD] text-white' : 'bg-[#E2E8F0] text-[#64748B]'
+                  <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded-full ${
+                    isActive ? 'bg-[#E8EFFB] text-[#003B8B]' : 'bg-[#E2E8F0] text-[#64748B]'
                   }`}>
                     {item.count}
                   </span>
@@ -92,7 +91,7 @@ export const StudentLayout: React.FC = () => {
           <div className="pt-4 mt-4 border-t border-[#E2E8F0]">
             <Link
               to="/courses"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium text-[#64748B] hover:text-[#004AAD] hover:bg-[#F8FAFC] transition-colors"
+              className="flex items-center gap-3 px-4 h-12 rounded-full text-[15px] font-medium text-[#64748B] hover:text-[#004AAD] hover:bg-[#F8FAFC] transition-colors"
             >
               <Compass className="w-4 h-4 text-[#64748B]" />
               <span>Course Marketplace</span>
@@ -102,7 +101,6 @@ export const StudentLayout: React.FC = () => {
 
         {/* Footer actions */}
         <div className="p-4 border-t border-[#E2E8F0] space-y-2">
-          <RoleSwitcher />
           <button
             onClick={() => {
               logout();
@@ -120,7 +118,6 @@ export const StudentLayout: React.FC = () => {
       <div className="md:hidden bg-white border-b border-[#E2E8F0] p-4 flex items-center justify-between">
         <EdufyLogo size="sm" />
         <div className="flex items-center gap-2">
-          <RoleSwitcher />
           <button
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
             className="p-2 text-[#111827]"
@@ -146,7 +143,7 @@ export const StudentLayout: React.FC = () => {
                 <span>{item.label}</span>
               </div>
               {item.count !== undefined && (
-                <span className="text-[10px] bg-[#E2E8F0] text-[#64748B] px-1.5 py-0.5 rounded-full">
+                <span className="text-[12px] bg-[#E2E8F0] text-[#64748B] px-1.5 py-0.5 rounded-full">
                   {item.count}
                 </span>
               )}
@@ -166,7 +163,7 @@ export const StudentLayout: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top bar inside student portal */}
-        <header className="hidden md:flex items-center justify-between h-16 px-8 bg-white border-b border-[#E2E8F0]">
+        <header className="hidden md:flex items-center justify-between h-[72px] px-10 bg-white/90 backdrop-blur border-b border-[#E2E8F0]">
           <div className="text-sm font-semibold text-[#111827]">
             Student Learning Workspace
           </div>
@@ -202,7 +199,7 @@ export const StudentLayout: React.FC = () => {
             <div className="py-4 text-center text-xs text-[#64748B] space-y-1">
               <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto opacity-60 mb-1" />
               <p className="font-semibold text-[#111827]">You're all caught up</p>
-              <p className="text-[11px]">No unread system or course notifications.</p>
+              <p className="text-[13px]">No unread system or course notifications.</p>
             </div>
           </div>
         )}

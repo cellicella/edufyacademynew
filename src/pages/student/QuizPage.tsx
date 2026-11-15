@@ -142,7 +142,7 @@ export const QuizPage: React.FC = () => {
             {courseId && (
               <button
                 onClick={() => navigate(`/learn/${courseId}`)}
-                className="w-full sm:w-auto px-6 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg shadow flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow flex items-center justify-center gap-1.5"
               >
                 <span>Return to Course Lectures</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -163,7 +163,7 @@ export const QuizPage: React.FC = () => {
             return (
               <div
                 key={q.id}
-                className="bg-white p-5 rounded-xl border border-[#E2E8F0] space-y-3 text-xs"
+                className="bg-white p-5 rounded-2xl border border-[#E2E8F0] space-y-3 text-xs"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export const QuizPage: React.FC = () => {
                   })}
                 </div>
 
-                <div className="p-3 bg-blue-50/50 rounded-lg text-slate-700 text-[11px] leading-relaxed">
+                <div className="p-3 bg-blue-50/50 rounded-lg text-slate-700 text-[13px] leading-relaxed">
                   <strong>Explanation:</strong> {q.explanation}
                 </div>
               </div>
@@ -245,7 +245,7 @@ export const QuizPage: React.FC = () => {
       </div>
 
       {/* Progress Strip */}
-      <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] flex items-center justify-between text-xs">
+      <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] flex items-center justify-between text-xs">
         <div>
           <span className="font-bold text-[#111827]">
             Question {currentQuestionIndex + 1} of {totalQuestions}
@@ -310,7 +310,7 @@ export const QuizPage: React.FC = () => {
           {currentQuestionIndex < totalQuestions - 1 ? (
             <button
               onClick={() => setCurrentQuestionIndex((i) => Math.min(totalQuestions - 1, i + 1))}
-              className="px-5 py-2 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors flex items-center gap-1.5 shadow"
+              className="px-5 py-2 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors flex items-center gap-1.5 shadow"
             >
               <span>Next Question</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -346,7 +346,7 @@ export const QuizPage: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmitQuiz}
-                className="px-4 py-2 text-xs font-bold text-white bg-[#004AAD] rounded-lg hover:bg-[#003B8B]"
+                className="px-4 py-2 text-sm font-bold text-white bg-[#004AAD] rounded-full hover:bg-[#003B8B]"
               >
                 Confirm & Submit
               </button>

@@ -1,3 +1,35 @@
+# Dependencies
 node_modules/
+
+# Build output (Hostinger builds these from the source on every push)
 build/
 dist/
+server-dist/
+.test-build/
+
+# Environment files and secrets: never commit
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# Local archives, backups and assistant output folders
+*.zip
+Claude outputs/
+Edufy-Academy-Production/
+
+# Logs, editor and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/

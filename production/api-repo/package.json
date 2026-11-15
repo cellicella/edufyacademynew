@@ -1,0 +1,28 @@
+{
+  "name": "edufyacademy-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Edufy Academy API (Express). Hostinger builds server-dist/server.mjs from server.ts on every push to main.",
+  "type": "module",
+  "main": "server-dist/server.mjs",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "build": "esbuild server.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=server-dist/server.mjs",
+    "start": "node server-dist/server.mjs",
+    "dev": "tsx server.ts",
+    "test": "tsx --test tests/backend.test.ts tests/cron.test.ts tests/emailSystem.test.ts tests/pushLogic.test.ts tests/settings.test.ts tests/smtp.test.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "esbuild": "0.28.0",
+    "express": "4.22.3",
+    "razorpay": "2.9.8"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}

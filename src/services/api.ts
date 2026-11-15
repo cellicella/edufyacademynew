@@ -1,10 +1,49 @@
-import { Course, Instructor, BlogPost, Certificate, Quiz } from '../types';
+import { Course, Instructor, BlogPost, Certificate, Quiz, Bundle } from '../types';
 import { gradeQuizSubmission, QuizEvaluationResult } from '../utils/courseUtils';
 import { supabase, isSupabaseConfigured, getAuthToken } from '../lib/supabase';
+import { readJson } from '../lib/http';
+import { categoryService, blogPublicService } from './content';
 
-export const API_BASE_URL =
+/**
+ * Where the Express API lives. Priority:
+ *  1. window.EDUFY_CONFIG.apiBaseUrl from /config.js — editable on the server after upload, no rebuild needed
+ *  2. VITE_API_BASE_URL at build time
+ *  3. '/api' on the same address as the website (single-app deployment)
+ */
+const runtimeApiBase = typeof window !== 'undefined' ? String((window as any).EDUFY_CONFIG?.apiBaseUrl || '').trim() : '';
+export const API_BASE_URL = (
+  runtimeApiBase ||
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
-  '/api';
+  '/api'
+).replace(/\/+$/, '');
+
+/**
+ * Row-level security only returns lesson *content* to enrolled learners (or free previews).
+ * The public curriculum outline (titles, durations, types) comes from the get_course_outline RPC,
+ * and is merged here so every visitor sees the full syllabus.
+ */
+async function attachCurriculumOutline(rows: any[]): Promise<any[]> {
+  if (!rows.length) return rows;
+  try {
+    const { data: outline, error } = await supabase.rpc('get_course_outline', { p_course_ids: rows.map((r) => r.id) });
+    if (error || !outline) return rows;
+    const bySection: Record<string, any[]> = {};
+    for (const l of outline as any[]) (bySection[l.section_id] ||= []).push(l);
+    return rows.map((row) => ({
+      ...row,
+      course_sections: (row.course_sections || []).map((sec: any) => {
+        const accessible = new Map((sec.lessons || []).map((l: any) => [l.id, l]));
+        const outlineLessons = bySection[sec.id] || [];
+        const merged = outlineLessons.map((o) => ({ ...o, ...(accessible.get(o.id) || {}) }));
+        // keep any accessible lessons not in the outline (shouldn't happen, but be safe)
+        for (const l of sec.lessons || []) if (!outlineLessons.some((o) => o.id === l.id)) merged.push(l);
+        return { ...sec, lessons: merged };
+      }),
+    }));
+  } catch {
+    return rows;
+  }
+}
 
 function mapSupabaseCourse(item: any): Course {
   const prereqs = Array.isArray(item.prerequisites) ? item.prerequisites : [];
@@ -55,24 +94,53 @@ function mapSupabaseCourse(item: any): Course {
     },
     learningOutcomes: Array.isArray(item.learning_outcomes) ? item.learning_outcomes : [],
     requirements: cleanRequirements,
-    targetAudience: ['Learners', 'Software Engineers', 'Career Changers'],
+    targetAudience: Array.isArray(item.target_audience) ? item.target_audience : [],
     certificateOffered: true,
-    curriculum: (item.course_sections || []).map((sec: any) => ({
-      id: sec.id,
-      title: sec.title,
-      order: sec.section_order || 1,
-      lessons: (sec.lessons || []).map((l: any) => ({
-        id: l.id,
-        title: l.title,
-        durationMinutes: l.duration_minutes || 10,
-        type: l.type || 'video',
-        videoUrl: l.video_url || '',
-        contentText: l.content_text || '',
-        storageAssetPath: l.storage_asset_path || '',
-        isFreePreview: !!l.is_free_preview,
-        quizId: l.quiz_id || undefined,
+    curriculum: [...(item.course_sections || [])]
+      .sort((a: any, b: any) => (a.section_order || 0) - (b.section_order || 0))
+      .map((sec: any) => ({
+        id: sec.id,
+        title: sec.title,
+        order: sec.section_order || 1,
+        lessons: [...(sec.lessons || [])]
+          .sort((a: any, b: any) => (a.lesson_order || 0) - (b.lesson_order || 0))
+          .map((l: any) => {
+            const quizRow = Array.isArray(l.quizzes) ? l.quizzes[0] : l.quizzes;
+            return {
+              id: l.id,
+              title: l.title,
+              durationMinutes: l.duration_minutes || 10,
+              type: l.type || 'video',
+              videoUrl: l.video_url || '',
+              contentText: l.content_text || '',
+              storageAssetPath: l.storage_asset_path || '',
+              isFreePreview: !!l.is_free_preview,
+              quizId: l.quiz_id || undefined,
+              resources: Array.isArray(l.resources) ? l.resources : [],
+              adiloFileId: l.adilo_file_id || null,
+              adiloEmbedUrl: l.adilo_embed_url || null,
+              videoTitle: l.video_title || null,
+              videoDuration: l.video_duration ?? null,
+              videoStatus: l.video_status || null,
+              quiz: quizRow
+                ? {
+                    id: quizRow.id,
+                    title: quizRow.title,
+                    passingScorePercent: quizRow.passing_score_percentage || 70,
+                    questions: [...(quizRow.quiz_questions || [])]
+                      .sort((a: any, b: any) => (a.question_order || 0) - (b.question_order || 0))
+                      .map((q: any) => ({
+                        id: q.id,
+                        question: q.question,
+                        options: Array.isArray(q.options) ? q.options : [],
+                        correctOptionIndex: q.correct_option_index ?? 0,
+                        explanation: q.explanation || '',
+                      })),
+                  }
+                : undefined,
+            };
+          }),
       })),
-    })),
     reviews: [],
     lastUpdated: 'Recently updated',
   };
@@ -139,7 +207,7 @@ export const courseService = {
           return [];
         }
 
-        let result = data.map(mapSupabaseCourse);
+        let result = (await attachCurriculumOutline(data)).map(mapSupabaseCourse);
 
         if (filters?.priceFilter) {
           if (filters.priceFilter === 'under-35') {
@@ -182,15 +250,7 @@ export const courseService = {
               id,
               title,
               section_order,
-              lessons (
-                id,
-                title,
-                duration_minutes,
-                type,
-                video_url,
-                is_free_preview,
-                lesson_order
-              )
+              lessons ( * )
             ),
             profiles:instructor_id (
               id,
@@ -209,7 +269,8 @@ export const courseService = {
         }
 
         if (data) {
-          return mapSupabaseCourse(data);
+          const [withOutline] = await attachCurriculumOutline([data]);
+          return mapSupabaseCourse(withOutline);
         }
       } catch (err) {
         console.warn('[Edufy API] Course fetch exception:', err);
@@ -265,7 +326,7 @@ export const courseService = {
       body: JSON.stringify({ course, curriculum, submitForReview }),
     });
 
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to save course.');
     }
@@ -284,7 +345,7 @@ export const courseService = {
       },
     });
 
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to delete course.');
     }
@@ -309,7 +370,7 @@ export const courseService = {
       body: JSON.stringify({ isPublished, status }),
     });
 
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to update publication status.');
     }
@@ -320,36 +381,28 @@ export const courseService = {
    * Retrieve Admin All Courses (drafts, pending, published)
    */
   async getAdminCourses(): Promise<Course[]> {
-    const token = await getAuthToken();
-    const res = await fetch(`${API_BASE_URL}/courses/admin/all`, {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to retrieve admin course catalog.');
-    }
-    return (data.courses || []).map(mapSupabaseCourse);
+    // Read straight from Supabase (RLS lets admins see every course, section, lesson and quiz),
+    // so this page works even when the Express API isn't deployed next to the website.
+    if (!isSupabaseConfigured) throw new Error('The database is not configured for this website.');
+    const { data, error } = await supabase.from('courses').select(MANAGE_COURSE_SELECT).order('created_at', { ascending: false });
+    if (error) throw new Error(`Could not load the course catalog: ${error.message}`);
+    return (data || []).map(mapSupabaseCourse);
   },
 
   /**
-   * Retrieve Courses Authored by Current User
+   * Retrieve Courses Authored by Current User (RLS: instructors see their own drafts too)
    */
   async getInstructorCourses(): Promise<Course[]> {
-    const token = await getAuthToken();
-    const res = await fetch(`${API_BASE_URL}/courses/instructor/mine`, {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to retrieve instructor courses.');
-    }
-    return (data.courses || []).map(mapSupabaseCourse);
+    if (!isSupabaseConfigured) throw new Error('The database is not configured for this website.');
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error('Please sign in again.');
+    const { data, error } = await supabase
+      .from('courses')
+      .select(MANAGE_COURSE_SELECT)
+      .eq('instructor_id', auth.user.id)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Could not load your courses: ${error.message}`);
+    return (data || []).map(mapSupabaseCourse);
   },
 
   /**
@@ -385,7 +438,7 @@ export const courseService = {
       }),
     });
 
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to upload media file.');
     }
@@ -395,7 +448,7 @@ export const courseService = {
   /**
    * Apply to become an instructor
    */
-  async applyToBecomeInstructor(payload: { headline?: string; bio?: string }): Promise<{ success: boolean; message: string; profile: any }> {
+  async applyToBecomeInstructor(payload: { headline?: string; bio?: string; expertise?: string; website?: string }): Promise<{ success: boolean; message: string; status?: string; profile?: any }> {
     const token = await getAuthToken();
     if (!token) {
       throw new Error('Authentication required.');
@@ -410,84 +463,22 @@ export const courseService = {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) {
       throw new Error(data.error || 'Failed to submit instructor application.');
     }
     return data;
   },
 
+  /** Course categories from the database (managed in Admin → Categories), with published-course counts. */
   async getCategories() {
-    const baseCategories = [
-      {
-        id: 'cat-1',
-        name: 'Web Development',
-        slug: 'web-development',
-        icon: 'Code2',
-        description: 'React, TypeScript, Node.js, Next.js, GraphQL, and modern web architectures.',
-      },
-      {
-        id: 'cat-2',
-        name: 'Artificial Intelligence',
-        slug: 'ai-data-science',
-        icon: 'Cpu',
-        description: 'Machine Learning, PyTorch, LLMs, Computer Vision, and Neural Networks.',
-      },
-      {
-        id: 'cat-3',
-        name: 'UI/UX Design',
-        slug: 'ui-ux-design',
-        icon: 'Palette',
-        description: 'Figma, Design Systems, Usability, Micro-interactions, and Design Research.',
-      },
-      {
-        id: 'cat-4',
-        name: 'Cloud & DevOps',
-        slug: 'cloud-devops',
-        icon: 'Cloud',
-        description: 'AWS, Kubernetes, Terraform, Docker, CI/CD, and Site Reliability Engineering.',
-      },
-      {
-        id: 'cat-5',
-        name: 'Business & Leadership',
-        slug: 'business-leadership',
-        icon: 'Briefcase',
-        description: 'Product Management, Executive Strategy, Agile Operations, and Startup Scaling.',
-      },
-      {
-        id: 'cat-6',
-        name: 'Cybersecurity',
-        slug: 'cybersecurity',
-        icon: 'ShieldCheck',
-        description: 'Penetration testing, cryptography, network defense, and DevSecOps.',
-      },
-    ];
-
-    if (isSupabaseConfigured) {
-      try {
-        const { data: courses } = await supabase
-          .from('courses')
-          .select('category_slug')
-          .eq('is_published', true);
-
-        if (courses) {
-          const counts: Record<string, number> = {};
-          courses.forEach((c) => {
-            const s = c.category_slug;
-            counts[s] = (counts[s] || 0) + 1;
-          });
-
-          return baseCategories.map((cat) => ({
-            ...cat,
-            courseCount: counts[cat.slug] || 0,
-          }));
-        }
-      } catch (err) {
-        console.warn('[Edufy API] Error fetching category counts:', err);
-      }
+    try {
+      const cats = await categoryService.listPublic();
+      return cats.map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon || 'BookOpen', description: c.description, imageUrl: c.imageUrl, courseCount: c.courseCount }));
+    } catch (err) {
+      console.warn('[Edufy API] Could not load categories:', err);
+      return [];
     }
-
-    return baseCategories.map((c) => ({ ...c, courseCount: 0 }));
   },
 };
 
@@ -692,12 +683,32 @@ export const instructorService = {
 };
 
 export const blogService = {
+  /** Published posts (same records the mobile app shows). */
   async getAllPosts(): Promise<BlogPost[]> {
-    return [];
+    const posts = await blogPublicService.list();
+    return posts.map((p) => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      excerpt: p.excerpt,
+      content: p.contentHtml,
+      author: { name: p.authorName, avatar: p.authorAvatarUrl || '', role: p.authorRole },
+      date: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+      readTime: `${p.readingMinutes} min read`,
+      category: p.category || '',
+      tags: p.tags,
+    }));
   },
 
-  async getPostBySlug(_slug: string): Promise<BlogPost | null> {
-    return null;
+  async getPostBySlug(slug: string): Promise<BlogPost | null> {
+    const p = await blogPublicService.get(slug);
+    if (!p) return null;
+    return {
+      id: p.id, title: p.title, slug: p.slug, excerpt: p.excerpt, content: p.contentHtml,
+      author: { name: p.authorName, avatar: p.authorAvatarUrl || '', role: p.authorRole },
+      date: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+      readTime: `${p.readingMinutes} min read`, category: p.category || '', tags: p.tags,
+    };
   },
 };
 
@@ -708,7 +719,7 @@ export const certificateService = {
   async verifyCertificate(code: string): Promise<{ valid: boolean; certificate: Certificate | null; error?: string }> {
     try {
       const res = await fetch(`/api/certificates/verify/${encodeURIComponent(code)}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (res.ok && data.valid && data.certificate) {
         const cert = data.certificate;
         return {
@@ -756,7 +767,7 @@ export const certificateService = {
         body: JSON.stringify({ courseId }),
       });
 
-      const data = await res.json();
+      const data = await readJson(res);
       if (res.ok && data.success && data.certificate) {
         const c = data.certificate;
         return {
@@ -1031,7 +1042,7 @@ export const paymentService = {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await readJson(res);
         return data.payments || [];
       }
       return [];
@@ -1055,7 +1066,7 @@ export const storageService = {
         body: JSON.stringify({ courseId, filePath }),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await readJson(res);
         return data.signedUrl || null;
       }
       return null;
@@ -1064,4 +1075,448 @@ export const storageService = {
       return null;
     }
   },
+};
+
+
+/* ============================================================================
+ * Bundles
+ * ========================================================================== */
+/** Full course tree for admin / instructor management screens (same shape the API returned). */
+const MANAGE_COURSE_SELECT = `
+  *,
+  course_sections ( id, title, section_order, lessons ( *, quizzes ( id, title, passing_score_percentage, quiz_questions ( id, question, options, correct_option_index, explanation, question_order ) ) ) ),
+  profiles:instructor_id ( id, full_name, avatar_url, headline, bio )
+`;
+
+const COURSE_SELECT = `
+  *,
+  course_sections ( id, title, section_order, lessons ( id, title, duration_minutes, type, video_url, is_free_preview, lesson_order ) ),
+  profiles:instructor_id ( id, full_name, avatar_url, headline, bio )
+`;
+
+function mapBundle(b: any): Bundle {
+  const courses: Course[] = [...(b.bundle_courses || [])]
+    .sort((x: any, y: any) => (x.position || 0) - (y.position || 0))
+    .map((bc: any) => bc.courses)
+    .filter(Boolean)
+    .map(mapSupabaseCourse);
+  return {
+    id: b.id,
+    slug: b.slug,
+    title: b.title,
+    subtitle: b.subtitle || '',
+    description: b.description || '',
+    thumbnail: b.thumbnail_url || courses[0]?.thumbnail || '',
+    price: parseFloat(b.price) || 0,
+    isPublished: !!b.is_published,
+    courses,
+    coursesValue: courses.reduce((sum, c) => sum + (c.price || 0), 0),
+  };
+}
+
+export interface BundleInput {
+  id?: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  thumbnail: string;
+  price: number;
+  isPublished: boolean;
+  courseIds: string[];
+}
+
+export const bundleService = {
+  async getPublishedBundles(): Promise<Bundle[]> {
+    if (!isSupabaseConfigured) return [];
+    const { data, error } = await supabase
+      .from('bundles')
+      .select(`*, bundle_courses ( position, courses ( ${COURSE_SELECT} ) )`)
+      .eq('is_published', true)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('[Bundles] fetch error:', error.message);
+      return [];
+    }
+    return (data || []).map(mapBundle);
+  },
+
+  async getBundle(idOrSlug: string): Promise<Bundle | null> {
+    if (!isSupabaseConfigured) return null;
+    const { data } = await supabase
+      .from('bundles')
+      .select(`*, bundle_courses ( position, courses ( ${COURSE_SELECT} ) )`)
+      .or(`id.eq.${idOrSlug},slug.eq.${idOrSlug}`)
+      .maybeSingle();
+    return data ? mapBundle(data) : null;
+  },
+
+  /** Admin: every bundle including drafts (RLS restricts this to admins). */
+  async getAllBundles(): Promise<Bundle[]> {
+    if (!isSupabaseConfigured) return [];
+    const { data, error } = await supabase
+      .from('bundles')
+      .select(`*, bundle_courses ( position, courses ( ${COURSE_SELECT} ) )`)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map(mapBundle);
+  },
+
+  async saveBundle(input: BundleInput): Promise<string> {
+    const baseSlug = input.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bundle';
+    const row: any = {
+      title: input.title.trim(),
+      subtitle: input.subtitle.trim(),
+      description: input.description.trim(),
+      thumbnail_url: input.thumbnail || null,
+      price: Math.max(0, Number(input.price) || 0),
+      is_published: input.isPublished,
+      updated_at: new Date().toISOString(),
+    };
+    let bundleId = input.id;
+    if (bundleId) {
+      const { error } = await supabase.from('bundles').update(row).eq('id', bundleId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data: auth } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from('bundles')
+        .insert({ ...row, slug: `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`, created_by: auth.user?.id })
+        .select('id')
+        .single();
+      if (error) throw new Error(error.message);
+      bundleId = data.id;
+    }
+    const { error: delErr } = await supabase.from('bundle_courses').delete().eq('bundle_id', bundleId);
+    if (delErr) throw new Error(delErr.message);
+    if (input.courseIds.length) {
+      const { error: insErr } = await supabase
+        .from('bundle_courses')
+        .insert(input.courseIds.map((courseId, i) => ({ bundle_id: bundleId, course_id: courseId, position: i + 1 })));
+      if (insErr) throw new Error(insErr.message);
+    }
+    return bundleId!;
+  },
+
+  async deleteBundle(id: string): Promise<void> {
+    const { error } = await supabase.from('bundles').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+};
+
+/* ============================================================================
+ * Admin console data (all backed by admin-only RPCs / RLS)
+ * ========================================================================== */
+export interface RevenueSummary {
+  instructor_share: number;
+  gross_revenue: number;
+  refunded: number;
+  transactions: number;
+  failed_transactions: number;
+  paying_students: number;
+  bundle_revenue: number;
+  by_month: { month: string; revenue: number; transactions: number }[];
+  by_course: { course_id: string; title: string; instructor: string | null; sales: number; revenue: number }[];
+  recent: { id: string; order_id: string; amount: number; status: string; created_at: string; student: string; email: string; item: string }[];
+}
+
+export interface InstructorOverviewRow {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string;
+  headline: string;
+  joined_at: string;
+  courses: number;
+  published_courses: number;
+  pending_courses: number;
+  students: number;
+  gross_revenue: number;
+  instructor_earnings: number;
+  avg_rating: number | null;
+}
+
+export interface InstructorApplication {
+  id: string;
+  user_id: string;
+  headline: string;
+  bio: string;
+  expertise: string;
+  website: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  applicant?: { full_name: string; email: string; avatar_url: string; created_at: string } | null;
+}
+
+export interface StudentOverviewRow {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string;
+  joined_at: string;
+  enrollments: number;
+  completed_courses: number;
+  lessons_completed: number;
+  avg_progress: number;
+  total_spent: number;
+  last_active: string | null;
+}
+
+export interface StudentDetail {
+  profile: { id: string; full_name: string; email: string; phone: string | null; avatar_url: string; headline: string; joined_at: string } | null;
+  courses: {
+    course_id: string;
+    title: string;
+    thumbnail_url: string;
+    enrolled_at: string;
+    status: string;
+    via_bundle: string | null;
+    total_lessons: number;
+    completed_lessons: number;
+    last_activity: string | null;
+    best_quiz_score: number | null;
+    certificate_code: string | null;
+  }[];
+  payments: { order_id: string; amount: number; status: string; created_at: string; item: string }[];
+}
+
+const num = (v: any) => (v === null || v === undefined ? 0 : Number(v));
+
+export const adminConsoleService = {
+  async getRevenueSummary(): Promise<RevenueSummary> {
+    const { data, error } = await supabase.rpc('admin_revenue_summary');
+    if (error) throw new Error(error.message);
+    const d: any = data || {};
+    return {
+      instructor_share: num(d.instructor_share) || 0.7,
+      gross_revenue: num(d.gross_revenue),
+      refunded: num(d.refunded),
+      transactions: num(d.transactions),
+      failed_transactions: num(d.failed_transactions),
+      paying_students: num(d.paying_students),
+      bundle_revenue: num(d.bundle_revenue),
+      by_month: (d.by_month || []).map((m: any) => ({ month: m.month, revenue: num(m.revenue), transactions: num(m.transactions) })),
+      by_course: (d.by_course || []).map((c: any) => ({ ...c, sales: num(c.sales), revenue: num(c.revenue) })),
+      recent: (d.recent || []).map((r: any) => ({ ...r, amount: num(r.amount) })),
+    };
+  },
+
+  async getInstructors(): Promise<InstructorOverviewRow[]> {
+    const { data, error } = await supabase.rpc('admin_instructor_overview');
+    if (error) throw new Error(error.message);
+    return (data || []).map((r: any) => ({
+      ...r,
+      courses: num(r.courses),
+      published_courses: num(r.published_courses),
+      pending_courses: num(r.pending_courses),
+      students: num(r.students),
+      gross_revenue: num(r.gross_revenue),
+      instructor_earnings: num(r.instructor_earnings),
+      avg_rating: r.avg_rating === null ? null : Number(r.avg_rating),
+    }));
+  },
+
+  async getApplications(): Promise<InstructorApplication[]> {
+    const { data, error } = await supabase
+      .from('instructor_applications')
+      .select('*, applicant:profiles!instructor_applications_user_id_fkey ( full_name, email, avatar_url, created_at )')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []) as InstructorApplication[];
+  },
+
+  async reviewApplication(applicationId: string, approve: boolean, note?: string): Promise<void> {
+    const { error } = await supabase.rpc('review_instructor_application', {
+      p_application_id: applicationId,
+      p_approve: approve,
+      p_note: note || null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async setUserRole(userId: string, role: 'student' | 'instructor'): Promise<void> {
+    const { error } = await supabase.rpc('admin_set_user_role', { p_user_id: userId, p_role: role });
+    if (error) throw new Error(error.message);
+  },
+
+  async getStudents(): Promise<StudentOverviewRow[]> {
+    const { data, error } = await supabase.rpc('admin_student_overview');
+    if (error) throw new Error(error.message);
+    return (data || []).map((r: any) => ({
+      ...r,
+      enrollments: num(r.enrollments),
+      completed_courses: num(r.completed_courses),
+      lessons_completed: num(r.lessons_completed),
+      avg_progress: num(r.avg_progress),
+      total_spent: num(r.total_spent),
+    }));
+  },
+
+  async getStudentDetail(userId: string): Promise<StudentDetail> {
+    const { data, error } = await supabase.rpc('admin_student_detail', { p_user_id: userId });
+    if (error) throw new Error(error.message);
+    const d: any = data || {};
+    return {
+      profile: d.profile || null,
+      courses: (d.courses || []).map((c: any) => ({ ...c, total_lessons: num(c.total_lessons), completed_lessons: num(c.completed_lessons) })),
+      payments: (d.payments || []).map((p: any) => ({ ...p, amount: num(p.amount) })),
+    };
+  },
+
+  async getInstructorShare(): Promise<number> {
+    const { data } = await supabase.from('platform_settings').select('value').eq('key', 'instructor_revenue_share').maybeSingle();
+    return data ? Number(data.value) : 0.7;
+  },
+
+  async setInstructorShare(share: number): Promise<void> {
+    const value = Math.min(1, Math.max(0, share));
+    const { error } = await supabase
+      .from('platform_settings')
+      .upsert({ key: 'instructor_revenue_share', value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) throw new Error(error.message);
+  },
+};
+
+/** The signed-in user's own instructor application (if any). */
+export async function getMyInstructorApplication(): Promise<InstructorApplication | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return null;
+  const { data } = await supabase.from('instructor_applications').select('*').eq('user_id', auth.user.id).maybeSingle();
+  return (data as InstructorApplication) || null;
+}
+
+
+/* ============================================================================
+ * Adilo video hosting (all Adilo API calls go through the Express backend)
+ * ========================================================================== */
+async function authedFetch(path: string, init: RequestInit = {}) {
+  const token = await getAuthToken();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  const data = await readJson(res).catch(() => ({} as any));
+  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status });
+  return data;
+}
+
+export interface AdiloUploadResult {
+  fileId: string;
+  projectId: string;
+  title: string;
+  durationSeconds: number;
+  durationFormatted: string | null;
+  embedUrl: string | null;
+  status: string;
+}
+
+export interface LessonVideoAccess {
+  embedUrl: string;
+  playerOrigin: string;
+  title: string | null;
+  durationSeconds: number | null;
+  status: string | null;
+  progress: { last_position_seconds: number; watched_seconds: number; is_completed: boolean } | null;
+}
+
+export const adiloService = {
+  status: () => authedFetch('/adilo/status') as Promise<{ configured: boolean; partSize: number; maxFileBytes: number }>,
+
+  start: (body: { filename: string; filesize: number; durationSeconds: number; mimeType: string; courseId?: string | null }) =>
+    authedFetch('/adilo/upload/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) as Promise<{
+      uploadId: string;
+      key: string;
+      partSize: number;
+      totalParts: number;
+    }>,
+
+  signPart: (uploadId: string, partNumber: number) =>
+    authedFetch(`/adilo/upload/sign?uploadId=${encodeURIComponent(uploadId)}&partNumber=${partNumber}`) as Promise<{ url: string; method: string }>,
+
+  proxyPart: async (uploadId: string, partNumber: number, blob: Blob, onProgress?: (loaded: number) => void): Promise<string> => {
+    const token = await getAuthToken();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/adilo/upload/part?uploadId=${encodeURIComponent(uploadId)}&partNumber=${partNumber}`);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => onProgress?.(e.loaded);
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          if (xhr.status >= 200 && xhr.status < 300 && data.ETag) resolve(data.ETag);
+          else reject(new Error(data.error || `Part ${partNumber} failed (${xhr.status})`));
+        } catch {
+          reject(new Error(`Part ${partNumber} failed (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error(`Network error uploading part ${partNumber}`));
+      xhr.send(blob);
+    });
+  },
+
+  complete: (uploadId: string, parts: { PartNumber: number; ETag: string }[]) =>
+    authedFetch('/adilo/upload/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uploadId, parts }) }) as Promise<AdiloUploadResult>,
+
+  deleteFile: (fileId: string) => authedFetch(`/adilo/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' }),
+
+  getFile: (fileId: string) => authedFetch(`/adilo/files/${encodeURIComponent(fileId)}`) as Promise<{ fileId: string; details: any; embedUrl: string | null }>,
+
+  getLessonVideo: (lessonId: string) => authedFetch(`/lessons/${encodeURIComponent(lessonId)}/video`) as Promise<LessonVideoAccess>,
+
+  reportProgress: async (
+    lessonId: string,
+    body: { position: number; watchedSeconds: number; duration: number; event: string },
+    keepalive = false
+  ) => {
+    const token = await getAuthToken();
+    const res = await fetch(`${API_BASE_URL}/lessons/${encodeURIComponent(lessonId)}/video-progress`, {
+      method: 'POST',
+      keepalive,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    const data = await readJson(res).catch(() => ({} as any));
+    if (!res.ok) throw new Error(data.error || 'Could not save progress');
+    return data as { position: number; watchedSeconds: number; duration: number; isCompleted: boolean; justCompleted: boolean };
+  },
+};
+
+/* ============================================================================
+ * Admin — CSV bulk lesson importer (rows are re-validated on the server)
+ * ========================================================================== */
+export interface LessonImportRowInput { title: string; embed: string }
+export interface LessonImportCheckedRow {
+  index: number;
+  title: string;
+  url: string | null;
+  status: 'valid' | 'invalid' | 'duplicate';
+  error: string | null;
+  existingLessonId?: string | null;
+}
+export interface LessonImportResult {
+  course: { id: string; title: string };
+  section: { id: string; title: string; created: boolean };
+  total: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  results: { index: number; title: string; status: 'created' | 'skipped' | 'failed'; lessonId: string | null; error: string | null }[];
+}
+
+export const lessonImportService = {
+  check: (courseId: string, sectionId: string | null, rows: LessonImportRowInput[]) =>
+    authedFetch('/admin/lessons/bulk-import/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, sectionId, rows }),
+    }) as Promise<{ rows: LessonImportCheckedRow[] }>,
+  run: (body: { courseId: string; sectionId?: string | null; newSectionTitle?: string; rows: LessonImportRowInput[] }) =>
+    authedFetch('/admin/lessons/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }) as Promise<LessonImportResult>,
 };

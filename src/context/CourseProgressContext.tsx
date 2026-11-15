@@ -18,6 +18,8 @@ interface CourseProgressContextType {
   isLessonCompleted: (courseId: string, lessonId: string) => boolean;
   toggleLessonComplete: (courseId: string, lessonId: string) => Promise<void>;
   markLessonComplete: (courseId: string, lessonId: string) => Promise<void>;
+  /** Update local state only (used after the server verified video completion). */
+  setLessonCompletedLocal: (courseId: string, lessonId: string) => void;
   setActiveLesson: (courseId: string, lessonId: string) => void;
   getActiveLessonId: (courseId: string, fallbackLessonId: string) => string;
   getCourseProgressPercent: (courseId: string, totalLessons: number) => number;
@@ -157,6 +159,14 @@ export const CourseProgressProvider: React.FC<{ children: React.ReactNode }> = (
     }
   };
 
+  const setLessonCompletedLocal = (courseId: string, lessonId: string) => {
+    setState((prev) => {
+      const current = prev.completedLessons[courseId] || [];
+      if (current.includes(lessonId)) return prev;
+      return { ...prev, completedLessons: { ...prev.completedLessons, [courseId]: [...current, lessonId] } };
+    });
+  };
+
   const setActiveLesson = (courseId: string, lessonId: string) => {
     setState((prev) => ({
       ...prev,
@@ -205,6 +215,7 @@ export const CourseProgressProvider: React.FC<{ children: React.ReactNode }> = (
         isLessonCompleted,
         toggleLessonComplete,
         markLessonComplete,
+        setLessonCompletedLocal,
         setActiveLesson,
         getActiveLessonId,
         getCourseProgressPercent,

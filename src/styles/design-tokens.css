@@ -13,7 +13,7 @@
   --edufy-surface: #FFFFFF;
   --edufy-surface-subtle: #F1F5F9;
   --edufy-primary-blue-hover: #003B8B;
-  --edufy-primary-blue-light: #EBF3FF;
+  --edufy-primary-blue-light: #E8EFFB;
   --edufy-secondary-blue-hover: #3E5EE0;
   --edufy-accent-purple-light: #F4EFFF;
   --edufy-success: #10B981;
@@ -24,14 +24,14 @@
   --edufy-danger-light: #FEF2F2;
 
   /* Typography */
-  --font-display: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Radius & Shadows */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-xl: 20px;
   --shadow-subtle: 0 1px 3px rgba(17, 24, 39, 0.05), 0 1px 2px rgba(17, 24, 39, 0.03);
   --shadow-card: 0 4px 6px -1px rgba(17, 24, 39, 0.05), 0 2px 4px -2px rgba(17, 24, 39, 0.05);
@@ -42,6 +42,9 @@ body {
   background-color: var(--edufy-bg);
   color: var(--edufy-text-primary);
   font-family: var(--font-body);
+  font-size: 1.125rem;
+  line-height: 1.75;
+  font-feature-settings: 'cv11', 'ss01';
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
@@ -50,7 +53,28 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(0, 74, 173, 0.45);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: #D9E6FB;
+  color: #111827;
 }
 
 .font-display {
@@ -131,4 +155,21 @@ h1, h2, h3, h4, h5, h6 {
   .animate-pulse-glow {
     animation: none !important;
   }
+}
+
+/* Edufy motion — short, purposeful, Material "emphasized decelerate" curve */
+@keyframes edufy-pop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes edufy-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.edufy-pop { animation: edufy-pop-in 0.18s cubic-bezier(0.05, 0.7, 0.1, 1); }
+.edufy-slide { animation: edufy-slide-in 0.26s cubic-bezier(0.05, 0.7, 0.1, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .edufy-pop, .edufy-slide { animation: none !important; }
+  html { scroll-behavior: auto; }
 }

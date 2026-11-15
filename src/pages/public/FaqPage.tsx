@@ -62,7 +62,7 @@ export const FaqPage: React.FC = () => {
           return (
             <div
               key={idx}
-              className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden transition-colors"
+              className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden transition-colors"
             >
               <button
                 onClick={() => setOpenIndex(isOpen ? null : idx)}

@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSiteSettings } from '../../context/SettingsContext';
+import { isHttps } from '../../config/siteSettings';
 
 interface EdufyLogoProps {
   variant?: 'full' | 'icon' | 'white';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   to?: string;
+  /** Which admin-managed logo to prefer (Settings → Branding). Falls back to the main logo, then the built-in one. */
+  slot?: 'main' | 'login';
 }
 
 export const EdufyLogo: React.FC<EdufyLogoProps> = ({
@@ -13,69 +17,52 @@ export const EdufyLogo: React.FC<EdufyLogoProps> = ({
   size = 'md',
   className = '',
   to = '/',
+  slot = 'main',
 }) => {
+  const { settings } = useSiteSettings();
+  const b = settings.branding;
+  const custom = [variant === 'white' ? b.logoDark : slot === 'login' ? b.loginLogo : b.logoLight, b.logoMain].find(isHttps) || '';
+  const [failed, setFailed] = useState<string | null>(null);
+  const siteName = settings.general.siteName || 'Edufy Academy';
+  const isDefaultName = siteName === 'Edufy Academy';
+  const tagline = settings.general.tagline;
   const iconSizes = {
-    sm: 'w-7 h-7',
-    md: 'w-9 h-9',
-    lg: 'w-11 h-11',
+    sm: 'w-9 h-9',
+    md: 'w-11 h-11',
+    lg: 'w-14 h-14',
   };
 
   const textSizes = {
-    sm: 'text-lg',
-    md: 'text-xl',
-    lg: 'text-2xl',
+    sm: 'text-[18px]',
+    md: 'text-[21px]',
+    lg: 'text-[26px]',
   };
 
   const subtextSizes = {
     sm: 'text-[9px] tracking-wider',
     md: 'text-[10px] tracking-widest',
-    lg: 'text-xs tracking-widest',
+    lg: 'text-[11px] tracking-widest',
   };
 
-  const logoIcon = (
-    <div className={`relative ${iconSizes[size]} shrink-0 flex items-center justify-center`}>
-      <svg
-        viewBox="0 0 48 48"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full drop-shadow-sm"
-      >
-        {/* Outer Shield / Geometric Portal */}
-        <rect
-          x="3"
-          y="3"
-          width="42"
-          height="42"
-          rx="12"
-          fill={variant === 'white' ? '#FFFFFF' : '#004AAD'}
-        />
-        {/* Academic Mortarboard Graduation Cap */}
-        <path
-          d="M24 12L37 18.5L24 25L11 18.5L24 12Z"
-          fill={variant === 'white' ? '#004AAD' : '#FFFFFF'}
-        />
-        {/* Cap Base & Tassel Accent in Accent Purple */}
-        <path
-          d="M17 21.5V28C17 31.5 24 33.5 24 33.5C24 33.5 31 31.5 31 28V21.5L24 25L17 21.5Z"
-          fill={variant === 'white' ? '#5271FF' : '#5271FF'}
-          opacity="0.95"
-        />
-        {/* Dynamic Graduation Cap Tassel Drop in Purple */}
-        <path
-          d="M36 19.5V26.5C36 27.5 35 28 34.2 27.5L34 27.3"
-          stroke={variant === 'white' ? '#5E17EB' : '#FFFFFF'}
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        {/* Spark of Knowledge Star / Beacon */}
-        <circle
-          cx="24"
-          cy="23"
-          r="2.2"
-          fill={variant === 'white' ? '#FFFFFF' : '#5E17EB'}
-        />
-      </svg>
-    </div>
+  // Official Edufy Academy emblem (client-approved artwork, /public/brand). The emblem reads well
+  // on both light and dark backgrounds, so the same file is used for every variant.
+  const logoIcon = custom && failed !== custom ? (
+    <span className={`relative ${iconSizes[size]} shrink-0`}>
+      <img src={custom} alt={siteName} decoding="async" className="w-full h-full object-contain" onError={() => setFailed(custom)} />
+    </span>
+  ) : (
+    <picture className={`relative ${iconSizes[size]} shrink-0`}>
+      <source srcSet="/brand/edufy-logo-128.webp 1x, /brand/edufy-logo-256.webp 2x" type="image/webp" />
+      <img
+        src="/brand/edufy-logo-128.png"
+        srcSet="/brand/edufy-logo-128.png 1x, /brand/edufy-logo-256.png 2x"
+        alt={siteName}
+        width={128}
+        height={128}
+        decoding="async"
+        className="w-full h-full object-contain"
+      />
+    </picture>
   );
 
   const content = (
@@ -83,6 +70,9 @@ export const EdufyLogo: React.FC<EdufyLogoProps> = ({
       {logoIcon}
       {variant !== 'icon' && (
         <div className="flex flex-col leading-none">
+          {!isDefaultName ? (
+            <span className={`font-display font-extrabold tracking-tight ${variant === 'white' ? 'text-white' : 'text-[#004AAD]'} ${textSizes[size]}`}>{siteName}</span>
+          ) : (
           <div className="flex items-center">
             <span
               className={`font-display font-extrabold tracking-tight ${
@@ -99,13 +89,14 @@ export const EdufyLogo: React.FC<EdufyLogoProps> = ({
               Academy
             </span>
           </div>
-          <span
+          )}
+          {!!tagline && <span
             className={`font-medium uppercase mt-0.5 text-[#64748B] ${
               variant === 'white' ? '!text-blue-100/70' : ''
             } ${subtextSizes[size]}`}
           >
-            Excellence in Learning
-          </span>
+            {tagline}
+          </span>}
         </div>
       )}
     </div>

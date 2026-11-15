@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase, isSupabaseConfigured, getAuthToken } from '../lib/supabase';
 import { Course } from '../types';
+import { readJson } from '../lib/http';
+import { API_BASE_URL } from '../services/api';
 
 interface Toast {
   id: string;
@@ -37,6 +39,7 @@ interface CartWishlistContextType {
   isEnrolled: (courseId: string) => boolean;
   initiateCourseEnrollment: (course: Course | { id: string; title: string; price: number }) => Promise<boolean>;
   initiateCartCheckout: () => Promise<boolean>;
+  initiateBundlePurchase: (bundle: { id: string; title: string; price: number; courseIds: string[] }) => Promise<boolean>;
   refreshUserData: () => Promise<void>;
   toasts: Toast[];
   showToast: (message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -272,7 +275,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const token = await getAuthToken();
 
       // Step 1: Create Order on Express Server
-      const orderRes = await fetch('/api/payments/create-order', {
+      const orderRes = await fetch(`${API_BASE_URL}/payments/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -285,11 +288,17 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
 
       if (!orderRes.ok) {
-        const errJson = await orderRes.json().catch(() => ({}));
+        const errJson = await readJson(orderRes).catch(() => ({} as any));
         throw new Error(errJson.error || 'Failed to create payment order on server.');
       }
 
-      const orderData = await orderRes.json();
+      const orderData = await readJson(orderRes);
+      if (orderData.free) {
+        setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...(orderData.courseIds || [])])));
+        setIsProcessingPayment(false);
+        showToast('You are enrolled — this is a free course.', 'success');
+        return true;
+      }
       const { orderId, amount, currency, keyId, courseTitle, user } = orderData;
 
       // Step 2: Load Razorpay SDK
@@ -329,7 +338,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
               try {
                 showToast('Verifying payment signature securely with server...', 'info');
 
-                const verifyRes = await fetch('/api/payments/verify-payment', {
+                const verifyRes = await fetch(`${API_BASE_URL}/payments/verify-payment`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -343,7 +352,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   }),
                 });
 
-                const verifyResult = await verifyRes.json();
+                const verifyResult = await readJson(verifyRes);
 
                 if (!verifyRes.ok || !verifyResult.success) {
                   throw new Error(verifyResult.error || 'Cryptographic payment verification failed.');
@@ -364,6 +373,9 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
           };
 
           const rzp = new (window as any).Razorpay(razorpayOptions);
+          rzp.on('payment.failed', (resp: any) => {
+            showToast(resp?.error?.description || 'Payment failed. You can retry in the Razorpay window.', 'error');
+          });
           rzp.open();
         } else {
           // Development/Testing fallback with server-side signature verification simulation
@@ -373,7 +385,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
               const testPaymentId = `pay_test_${Date.now()}`;
               showToast('Running server-side signature verification & transactional enrollment...', 'info');
 
-              const verifyRes = await fetch('/api/payments/verify-payment', {
+              const verifyRes = await fetch(`${API_BASE_URL}/payments/verify-payment`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -387,7 +399,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 }),
               });
 
-              const verifyResult = await verifyRes.json();
+              const verifyResult = await readJson(verifyRes);
               if (verifyRes.ok && verifyResult.success) {
                 setEnrolledCourseIds((prev) => [...prev, course.id]);
                 setIsProcessingPayment(false);
@@ -407,6 +419,103 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
     } catch (err: any) {
       console.error('[Checkout Error]:', err);
+      setIsProcessingPayment(false);
+      showToast(err.message || 'Unable to process checkout. Please try again.', 'error');
+      return false;
+    }
+  };
+
+
+  /**
+   * Bundle purchase via Razorpay — the server prices the bundle and grants every course in it.
+   */
+  const initiateBundlePurchase = async (bundle: { id: string; title: string; price: number; courseIds: string[] }): Promise<boolean> => {
+    if (!currentUser) {
+      showToast('Please sign in or create an account to buy this bundle', 'warning');
+      return false;
+    }
+    if (bundle.courseIds.length > 0 && bundle.courseIds.every((id) => enrolledCourseIds.includes(id))) {
+      showToast('You already own every course in this bundle', 'info');
+      return true;
+    }
+
+    setIsProcessingPayment(true);
+    try {
+      const token = await getAuthToken();
+      const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      const orderRes = await fetch(`${API_BASE_URL}/payments/create-order`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ bundleId: bundle.id }),
+      });
+      const orderData = await readJson(orderRes).catch(() => ({} as any));
+      if (!orderRes.ok) throw new Error(orderData.error || 'Failed to create bundle order.');
+
+      const grant = (ids: string[]) => setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
+      if (orderData.free) {
+        grant(orderData.courseIds || []);
+        setIsProcessingPayment(false);
+        showToast(`Bundle unlocked: ${bundle.title}`, 'success');
+        return true;
+      }
+
+      const verify = async (payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+        const verifyRes = await fetch(`${API_BASE_URL}/payments/verify-payment`, { method: 'POST', headers, body: JSON.stringify(payload) });
+        const result = await readJson(verifyRes);
+        if (!verifyRes.ok || !result.success) throw new Error(result.error || 'Payment verification failed.');
+        grant(result.courseIds || []);
+        showToast(`Payment verified! "${bundle.title}" is unlocked.`, 'success');
+      };
+
+      const { orderId, amount, currency, keyId, user } = orderData;
+      const scriptLoaded = await loadRazorpayScript();
+
+      return await new Promise<boolean>((resolve) => {
+        if (scriptLoaded && typeof (window as any).Razorpay === 'function' && keyId && !String(orderId).startsWith('order_test_')) {
+          const rzp = new (window as any).Razorpay({
+            key: keyId,
+            amount,
+            currency,
+            name: 'Edufy Academy',
+            description: bundle.title,
+            order_id: orderId,
+            prefill: { name: user?.name || currentUser.name, email: user?.email || currentUser.email },
+            theme: { color: '#004AAD' },
+            modal: {
+              ondismiss: () => {
+                setIsProcessingPayment(false);
+                showToast('Payment window cancelled.', 'info');
+                resolve(false);
+              },
+            },
+            handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+              try {
+                await verify(response);
+                resolve(true);
+              } catch (e: any) {
+                showToast(e.message || 'Payment verification failed.', 'error');
+                resolve(false);
+              } finally {
+                setIsProcessingPayment(false);
+              }
+            },
+          });
+          rzp.on('payment.failed', (resp: any) => {
+            showToast(resp?.error?.description || 'Payment failed. You can retry in the Razorpay window.', 'error');
+          });
+          rzp.open();
+        } else {
+          // Local development without Razorpay keys (server only accepts this outside production)
+          verify({ razorpay_order_id: orderId, razorpay_payment_id: `pay_test_${Date.now()}`, razorpay_signature: 'test' })
+            .then(() => resolve(true))
+            .catch((e) => {
+              showToast(e.message || 'Payment failed.', 'error');
+              resolve(false);
+            })
+            .finally(() => setIsProcessingPayment(false));
+        }
+      });
+    } catch (err: any) {
       setIsProcessingPayment(false);
       showToast(err.message || 'Unable to process checkout. Please try again.', 'error');
       return false;
@@ -442,7 +551,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const token = await getAuthToken();
       const courseIds = pendingCartItems.map((i) => i.id);
 
-      const orderRes = await fetch('/api/payments/create-order', {
+      const orderRes = await fetch(`${API_BASE_URL}/payments/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -455,11 +564,17 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
 
       if (!orderRes.ok) {
-        const errJson = await orderRes.json().catch(() => ({}));
+        const errJson = await readJson(orderRes).catch(() => ({} as any));
         throw new Error(errJson.error || 'Failed to create payment order on server.');
       }
 
-      const orderData = await orderRes.json();
+      const orderData = await readJson(orderRes);
+      if (orderData.free) {
+        setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...(orderData.courseIds || [])])));
+        setIsProcessingPayment(false);
+        showToast('You are enrolled — this is a free course.', 'success');
+        return true;
+      }
       const { orderId, amount, currency, keyId, courseTitle, user } = orderData;
       const scriptLoaded = await loadRazorpayScript();
 
@@ -495,7 +610,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
               try {
                 showToast('Verifying payment signature securely with server...', 'info');
 
-                const verifyRes = await fetch('/api/payments/verify-payment', {
+                const verifyRes = await fetch(`${API_BASE_URL}/payments/verify-payment`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -509,7 +624,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   }),
                 });
 
-                const verifyResult = await verifyRes.json();
+                const verifyResult = await readJson(verifyRes);
                 if (!verifyRes.ok || !verifyResult.success) {
                   throw new Error(verifyResult.error || 'Cryptographic payment verification failed.');
                 }
@@ -530,6 +645,9 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
           };
 
           const rzp = new (window as any).Razorpay(razorpayOptions);
+          rzp.on('payment.failed', (resp: any) => {
+            showToast(resp?.error?.description || 'Payment failed. You can retry in the Razorpay window.', 'error');
+          });
           rzp.open();
         } else {
           // Dev test fallback with server-side signature verification
@@ -538,7 +656,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
               const testPaymentId = `pay_test_${Date.now()}`;
               showToast('Verifying payment signature & granting multi-course enrollment...', 'info');
 
-              const verifyRes = await fetch('/api/payments/verify-payment', {
+              const verifyRes = await fetch(`${API_BASE_URL}/payments/verify-payment`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -552,7 +670,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 }),
               });
 
-              const verifyResult = await verifyRes.json();
+              const verifyResult = await readJson(verifyRes);
               if (verifyRes.ok && verifyResult.success) {
                 setEnrolledCourseIds((prev) => [...new Set([...prev, ...courseIds])]);
                 clearCart();
@@ -600,6 +718,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isEnrolled,
         initiateCourseEnrollment,
         initiateCartCheckout,
+        initiateBundlePurchase,
         refreshUserData,
         toasts,
         showToast,

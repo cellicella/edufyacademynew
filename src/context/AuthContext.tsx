@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { authCallbackUrl, siteUrl } from '../lib/siteUrl';
+import { disableGoogleAutoSelect } from '../lib/googleIdentity';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -17,12 +19,19 @@ interface AuthContextType {
     name: string,
     email: string,
     password?: string,
-    role?: UserRole
+    role?: UserRole,
+    redirectAfterVerify?: string | null
   ) => Promise<{ success: boolean; error?: string; requiresEmailVerification?: boolean; user?: User }>;
+  resendVerification: (email: string, redirectAfterVerify?: string | null) => Promise<{ success: boolean; error?: string }>;
+  /** Google via Supabase OAuth (redirects to Google, back through Supabase to /auth/callback). */
+  loginWithGoogle: (next?: string | null) => Promise<{ success: boolean; error?: string }>;
+  /** Google Identity Services ID token (official Google button / One Tap) → Supabase session. */
+  loginWithGoogleIdToken: (idToken: string, rawNonce: string) => Promise<{ success: boolean; error?: string; user?: User }>;
+  /** Passwordless sign-in link by email (only for existing accounts). */
+  sendMagicLink: (email: string, next?: string | null) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  switchRole: (role: UserRole) => Promise<void>;
   clearError: () => void;
 }
 
@@ -261,7 +270,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     email: string,
     password?: string,
-    userRole: UserRole = 'student'
+    userRole: UserRole = 'student',
+    redirectAfterVerify?: string | null
   ): Promise<{ success: boolean; error?: string; requiresEmailVerification?: boolean; user?: User }> => {
     setIsLoading(true);
     setAuthError(null);
@@ -298,6 +308,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: cleanEmail,
         password,
         options: {
+          // The confirmation link returns to THIS deployed site (not Supabase's default Site URL)
+          emailRedirectTo: authCallbackUrl(redirectAfterVerify),
           data: {
             full_name: cleanName,
             role: safeRole,
@@ -347,9 +359,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('[Auth] Sign out notice:', err);
       }
     }
+    disableGoogleAutoSelect();
     setCurrentUser(null);
     localStorage.removeItem('edufy_user');
     setIsLoading(false);
+  };
+
+  // Resend the sign-up confirmation email (same redirect as registration)
+  const resendVerification = async (email: string, redirectAfterVerify?: string | null): Promise<{ success: boolean; error?: string }> => {
+    if (!isSupabaseConfigured) return { success: false, error: 'Database service is currently unavailable.' };
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: authCallbackUrl(redirectAfterVerify) },
+    });
+    if (error) {
+      const message = /rate|seconds|too many/i.test(error.message)
+        ? 'Please wait a minute before requesting another email.'
+        : error.message;
+      return { success: false, error: message };
+    }
+    return { success: true };
+  };
+
+  const friendlyOAuthError = (msg: string) =>
+    /provider is not enabled|Unsupported provider/i.test(msg)
+      ? 'Google sign-in is not switched on for this website yet. Please use email and password, or contact support.'
+      : /nonce/i.test(msg)
+      ? 'Google sign-in could not be verified. Please try again.'
+      : msg;
+
+  // Google (Supabase OAuth redirect flow). Supabase links a Google login to an existing account with the same
+  // verified email, so enrollments and progress stay on that account.
+  const loginWithGoogle = async (next?: string | null): Promise<{ success: boolean; error?: string }> => {
+    setAuthError(null);
+    if (!isSupabaseConfigured) return { success: false, error: 'Database service is currently unavailable.' };
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // Return to the site the visitor is on (Supabase only accepts addresses on its Redirect URLs list)
+        redirectTo: `${window.location.origin}/auth/callback${next && next.startsWith('/') && !next.startsWith('//') ? `?next=${encodeURIComponent(next)}` : ''}`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) {
+      const message = friendlyOAuthError(error.message);
+      setAuthError(message);
+      return { success: false, error: message };
+    }
+    return { success: true }; // the browser is now navigating to Google
+  };
+
+  const loginWithGoogleIdToken = async (idToken: string, rawNonce: string): Promise<{ success: boolean; error?: string; user?: User }> => {
+    setAuthError(null);
+    if (!isSupabaseConfigured) return { success: false, error: 'Database service is currently unavailable.' };
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken, nonce: rawNonce });
+    if (error || !data.session?.user) {
+      const message = friendlyOAuthError(error?.message || 'Google sign-in failed.');
+      setAuthError(message);
+      return { success: false, error: message };
+    }
+    const u = data.session.user;
+    const user = await fetchSupabaseProfile(u.id, u.email || '', u.user_metadata as any);
+    return { success: true, user: user || undefined };
+  };
+
+  const sendMagicLink = async (email: string, next?: string | null): Promise<{ success: boolean; error?: string }> => {
+    setAuthError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return { success: false, error: 'Enter a valid email address.' };
+    if (!isSupabaseConfigured) return { success: false, error: 'Database service is currently unavailable.' };
+    const { error } = await supabase.auth.signInWithOtp({ email: cleanEmail, options: { shouldCreateUser: false, emailRedirectTo: authCallbackUrl(next) } });
+    // Same answer whether or not the account exists (no account enumeration)
+    if (error && !/not found|signups not allowed|Signups not allowed/i.test(error.message)) {
+      if (/rate limit|too many/i.test(error.message)) return { success: false, error: 'Too many requests. Please wait a minute and try again.' };
+      return { success: false, error: error.message };
+    }
+    return { success: true };
   };
 
   // Password Reset Request
@@ -358,7 +444,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim().toLowerCase();
     if (isSupabaseConfigured) {
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${siteUrl()}/reset-password`,
       });
       if (error) {
         setAuthError(error.message);
@@ -385,21 +471,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: 'Database service is currently unavailable.' };
   };
 
-  // Switch Role (allows admins to preview student/instructor view)
-  const switchRole = async (newRole: UserRole) => {
-    if (currentUser) {
-      // Disallow non-admins from self-elevating to admin in the client
-      if (newRole === 'admin' && currentUser.role !== 'admin') {
-        console.warn('[Security] Unauthorized role elevation to admin rejected.');
-        return;
-      }
-
-      const updated = { ...currentUser, role: newRole };
-      setCurrentUser(updated);
-      localStorage.setItem('edufy_user', JSON.stringify(updated));
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -410,10 +481,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authError,
         login,
         register,
+        resendVerification,
+        loginWithGoogle,
+        loginWithGoogleIdToken,
+        sendMagicLink,
         logout,
         resetPassword,
         updatePassword,
-        switchRole,
         clearError,
       }}
     >

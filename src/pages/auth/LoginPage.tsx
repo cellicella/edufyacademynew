@@ -1,20 +1,35 @@
+import { AuthShell } from '../../components/layout/AuthShell';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { EdufyLogo } from '../../components/common/EdufyLogo';
-import { UserRole } from '../../types';
-import { Mail, Lock, ArrowRight, UserCheck, Shield, GraduationCap, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { useSiteSettings } from '../../context/SettingsContext';
+import { AuthDivider, GoogleSignInButton } from '../../components/auth/GoogleSignIn';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, register, authError, clearError, currentUser, isAuthenticated } = useAuth();
+  const { login, sendMagicLink, authError, clearError, currentUser, isAuthenticated } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { settings } = useSiteSettings();
+  const auth = settings.auth;
+  const [useMagic, setUseMagic] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
 
-  const redirectUrl = searchParams.get('redirect');
+  const rawRedirect = searchParams.get('redirect');
+  // Only same-site paths (no open redirects)
+  const redirectUrl = rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : null;
+  // ?method=email always shows the email form, so administrators can never be locked out by login settings
+  const forceEmail = searchParams.get('method') === 'email';
+  const showGoogle = auth.googleEnabled;
+  const showPassword = auth.emailPasswordEnabled || forceEmail || (!auth.googleEnabled && !auth.magicLinkEnabled);
+  const showMagic = auth.magicLinkEnabled;
+  const showEmailSection = showPassword || showMagic;
+  const googleFirst = showGoogle && (auth.preferredMethod !== 'email' || !showEmailSection) && !forceEmail;
 
   // If already logged in, redirect immediately
   useEffect(() => {
@@ -58,65 +73,21 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickDemoLogin = async (targetRole: UserRole) => {
+  const handleMagic = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
-    clearError();
-
-    const demoEmail =
-      targetRole === 'admin'
-        ? 'admin@edufy.academy'
-        : targetRole === 'instructor'
-        ? 'sarah.chen@edufy.test'
-        : 'student@edufy.test';
-    const demoPassword = 'EdufyDemoPassword123!';
-
-    // Attempt sign-in with standard demo password
-    let result = await login(demoEmail, demoPassword);
-
-    // If user does not exist in auth yet, auto-provision and sign in
-    if (!result.success) {
-      const regResult = await register(
-        targetRole === 'admin'
-          ? 'Platform Administrator'
-          : targetRole === 'instructor'
-          ? 'Dr. Sarah Chen'
-          : 'Jordan Smith',
-        demoEmail,
-        demoPassword,
-        targetRole
-      );
-
-      if (regResult.success) {
-        result = await login(demoEmail, demoPassword);
-      }
-    }
-
+    const r = await sendMagicLink(email, redirectUrl);
     setLoading(false);
-
-    if (result.success) {
-      if (redirectUrl) {
-        navigate(redirectUrl, { replace: true });
-      } else if (targetRole === 'admin') {
-        navigate('/admin', { replace: true });
-      } else if (targetRole === 'instructor') {
-        navigate('/instructor', { replace: true });
-      } else {
-        navigate('/student', { replace: true });
-      }
-    } else {
-      setErrorMessage(
-        result.error ||
-          'Quick login failed. If this is a fresh database, please ensure "supabase/fix_auth_trigger.sql" has been executed.'
-      );
-    }
+    if (r.success) setMagicSent(true);
+    else setErrorMessage(r.error || 'Could not send the sign-in link.');
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <EdufyLogo size="lg" className="justify-center mb-6" />
-        <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#111827]">
+    <AuthShell>
+      <div className="sm:mx-auto sm:w-full sm:max-w-[480px] text-left">
+        <EdufyLogo size="lg" className="edufy-auth-logo justify-center mb-6" />
+        <h2 className="ed-display text-[2.25rem] sm:text-[2.5rem] leading-tight">
           Sign in to your account
         </h2>
         <p className="mt-2 text-xs text-[#64748B]">
@@ -130,8 +101,8 @@ export const LoginPage: React.FC = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-md rounded-2xl border border-[#E2E8F0] sm:px-10 space-y-6">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-[480px]">
+        <div className="bg-white py-8 px-6 shadow-lg rounded-[28px] border border-[#E2E8F0] sm:px-10 space-y-6">
           {(errorMessage || authError) && (
             <div className="p-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
@@ -145,9 +116,44 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={handleLogin}>
+          {googleFirst && <GoogleSignInButton next={redirectUrl} onError={setErrorMessage} />}
+          {googleFirst && showEmailSection && <AuthDivider label="Or continue with email" />}
+
+          {showEmailSection && magicSent && (
+            <div className="p-4 text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl flex items-start gap-2" role="status">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <div>
+                If an account exists for <strong>{email}</strong>, a sign-in link is on its way. Open it on this device. Check your spam folder if it doesn’t arrive in a few minutes.
+                <button type="button" className="block mt-2 text-[13px] font-semibold text-[#004AAD] hover:underline" onClick={() => setMagicSent(false)}>Use a different email</button>
+              </div>
+            </div>
+          )}
+
+          {showEmailSection && !magicSent && (useMagic || !showPassword) && showMagic && (
+            <form className="space-y-4" onSubmit={handleMagic} aria-label="Email me a sign-in link">
+              <div>
+                <label className="block text-[15px] font-semibold text-[#111827] mb-1.5" htmlFor="magic-email">Email Address</label>
+                <div className="relative">
+                  <input id="magic-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="alex.jordan@company.com"
+                    className="w-full pl-9 pr-3 py-2.5 text-xs bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#111827] focus:outline-none focus:border-[#004AAD]" />
+                  <Mail className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+              <button type="submit" disabled={loading} className="w-full py-2.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                <Sparkles className="w-4 h-4" />
+                <span>{loading ? 'Sending…' : 'Email me a sign-in link'}</span>
+              </button>
+              {showPassword && (
+                <button type="button" onClick={() => setUseMagic(false)} className="w-full text-[13px] font-semibold text-[#004AAD] hover:underline">Sign in with a password instead</button>
+              )}
+            </form>
+          )}
+
+          {showPassword && !magicSent && !(useMagic && showMagic) && (
+            <>
+          <form className="space-y-4" onSubmit={handleLogin} aria-label="Sign in with email and password">
             <div>
-              <label className="block text-xs font-bold text-[#111827] uppercase tracking-wider mb-1.5">
+              <label className="block text-[15px] font-semibold text-[#111827] mb-1.5">
                 Email Address
               </label>
               <div className="relative">
@@ -159,18 +165,18 @@ export const LoginPage: React.FC = () => {
                   placeholder="alex.jordan@company.com"
                   className="w-full pl-9 pr-3 py-2.5 text-xs bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#111827] focus:outline-none focus:border-[#004AAD]"
                 />
-                <Mail className="w-4 h-4 text-[#64748B] absolute left-3 top-3" />
+                <Mail className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-[#111827] uppercase tracking-wider">
+                <label className="block text-[15px] font-semibold text-[#111827]">
                   Password
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-[11px] font-semibold text-[#004AAD] hover:underline"
+                  className="text-[13px] font-semibold text-[#004AAD] hover:underline"
                 >
                   Forgot password?
                 </Link>
@@ -184,7 +190,7 @@ export const LoginPage: React.FC = () => {
                   placeholder="••••••••••••"
                   className="w-full pl-9 pr-3 py-2.5 text-xs bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#111827] focus:outline-none focus:border-[#004AAD]"
                 />
-                <Lock className="w-4 h-4 text-[#64748B] absolute left-3 top-3" />
+                <Lock className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
             </div>
 
@@ -202,41 +208,32 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg shadow transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span>{loading ? 'Signing in...' : 'Sign In'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+              {showMagic && (
+                <button type="button" onClick={() => setUseMagic(true)} className="w-full text-[13px] font-semibold text-[#004AAD] hover:underline">Email me a sign-in link instead</button>
+              )}
+            </>
+          )}
 
-          {/* Quick Demo Access Buttons */}
-          <div className="pt-4 border-t border-[#E2E8F0] space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] block text-center">
-              Quick 1-Click Evaluation Login
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('student')}
-                disabled={loading}
-                className="p-2 border border-[#E2E8F0] rounded-lg bg-[#F8FAFC] hover:bg-[#EBF3FF] hover:border-blue-300 text-center transition-colors disabled:opacity-50"
-              >
-                <GraduationCap className="w-4 h-4 text-[#004AAD] mx-auto mb-1" />
-                <span className="text-[10px] font-bold text-[#111827] block">Student</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('instructor')}
-                disabled={loading}
-                className="p-2 border border-[#E2E8F0] rounded-lg bg-[#F8FAFC] hover:bg-[#F4EFFF] hover:border-purple-300 text-center transition-colors disabled:opacity-50"
-              >
-                <UserCheck className="w-4 h-4 text-[#5E17EB] mx-auto mb-1" />
-                <span className="text-[10px] font-bold text-[#111827] block">Instructor</span>
-              </button>
-            </div>
-          </div>
+          {!googleFirst && showGoogle && showEmailSection && <AuthDivider label="Or" />}
+          {!googleFirst && showGoogle && <GoogleSignInButton next={redirectUrl} onError={setErrorMessage} />}
+
+          {!showPassword && (
+            <p className="text-center text-[12px] text-[#64748B]">
+              Staff or administrator?{' '}
+              <Link to={`/login?method=email${redirectUrl ? `&redirect=${encodeURIComponent(redirectUrl)}` : ''}`} className="font-semibold text-[#004AAD] hover:underline">
+                Sign in with email and password
+              </Link>
+            </p>
+          )}
+
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 };

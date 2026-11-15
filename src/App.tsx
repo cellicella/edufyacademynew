@@ -5,9 +5,14 @@
 
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { WhatsAppButton } from './components/common/WhatsAppButton';
 import { AuthProvider } from './context/AuthContext';
 import { CourseProgressProvider } from './context/CourseProgressContext';
 import { CartWishlistProvider } from './context/CartWishlistContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { MaintenanceGate } from './components/site/MaintenanceGate';
+import { GoogleOneTap } from './components/auth/GoogleSignIn';
+import { AuthLinkRescue } from './components/auth/AuthLinkRescue';
 
 // Layouts
 import { MainLayout } from './layouts/MainLayout';
@@ -29,6 +34,8 @@ import { ContactPage } from './pages/public/ContactPage';
 import { FaqPage } from './pages/public/FaqPage';
 import { LegalPage } from './pages/public/LegalPage';
 import { BecomeInstructorPage } from './pages/public/BecomeInstructorPage';
+import { BundlesPage } from './pages/public/BundlesPage';
+import { BundleDetailsPage } from './pages/public/BundleDetailsPage';
 
 // Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -57,6 +64,20 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminCoursesPage } from './pages/admin/AdminCoursesPage';
 import { AdminReportsPage } from './pages/admin/AdminReportsPage';
+import { AdminRevenuePage } from './pages/admin/AdminRevenuePage';
+import { AdminBundlesPage } from './pages/admin/AdminBundlesPage';
+import { AdminLessonImporterPage } from './pages/admin/AdminLessonImporterPage';
+import { AdminInstructorsPage } from './pages/admin/AdminInstructorsPage';
+import { AdminStudentsPage } from './pages/admin/AdminStudentsPage';
+import { AdminNotificationsPage } from './pages/admin/AdminNotificationsPage';
+import { AdminBannersPage } from './pages/admin/AdminBannersPage';
+import { AdminOffersPage } from './pages/admin/AdminOffersPage';
+import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
+import { AdminCategoriesPage } from './pages/admin/AdminCategoriesPage';
+import { AdminBlogPage } from './pages/admin/AdminBlogPage';
+import { BlogListingPage } from './pages/public/BlogListingPage';
+import { BlogDetailsPage } from './pages/public/BlogDetailsPage';
+import { AdminSettingsPage } from './pages/admin/settings/AdminSettingsPage';
 
 // Scroll to top helper
 function ScrollToTop() {
@@ -69,11 +90,15 @@ function ScrollToTop() {
 
 export default function App() {
   return (
+    <SettingsProvider>
     <AuthProvider>
       <CourseProgressProvider>
         <CartWishlistProvider>
           <BrowserRouter>
             <ScrollToTop />
+            <GoogleOneTap />
+            <AuthLinkRescue />
+            <MaintenanceGate>
             <Routes>
               {/* Public Website Routes */}
               <Route path="/" element={<MainLayout />}>
@@ -81,6 +106,8 @@ export default function App() {
                 <Route path="courses" element={<MarketplacePage />} />
                 <Route path="courses/:id" element={<CourseDetailsPage />} />
                 <Route path="categories" element={<CategoriesPage />} />
+                <Route path="bundles" element={<BundlesPage />} />
+                <Route path="bundles/:id" element={<BundleDetailsPage />} />
                 <Route path="instructors" element={<InstructorsPage />} />
                 <Route path="instructors/:id" element={<InstructorDetailsPage />} />
                 <Route path="verify-certificate" element={<CertificateVerificationPage />} />
@@ -88,6 +115,8 @@ export default function App() {
                 <Route path="contact" element={<ContactPage />} />
                 <Route path="become-instructor" element={<BecomeInstructorPage />} />
                 <Route path="faq" element={<FaqPage />} />
+                <Route path="blog" element={<BlogListingPage />} />
+                <Route path="blog/:slug" element={<BlogDetailsPage />} />
                 <Route path="privacy" element={<LegalPage />} />
                 <Route path="terms" element={<LegalPage />} />
                 <Route path="refund" element={<LegalPage />} />
@@ -98,6 +127,7 @@ export default function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
               {/* Learning Player & Quiz (Immersive Full Screen) */}
               <Route
@@ -165,6 +195,18 @@ export default function App() {
                 <Route path="courses/new" element={<CourseCreatorPage />} />
                 <Route path="courses/:id/edit" element={<CourseCreatorPage />} />
                 <Route path="reports" element={<AdminReportsPage />} />
+                <Route path="revenue" element={<AdminRevenuePage />} />
+                <Route path="bundles" element={<AdminBundlesPage />} />
+                <Route path="lesson-import" element={<AdminLessonImporterPage />} />
+                <Route path="instructors" element={<AdminInstructorsPage />} />
+                <Route path="students" element={<AdminStudentsPage />} />
+                <Route path="categories" element={<AdminCategoriesPage />} />
+                <Route path="blog" element={<AdminBlogPage />} />
+                <Route path="notifications" element={<AdminNotificationsPage />} />
+                <Route path="banners" element={<AdminBannersPage />} />
+                <Route path="offers" element={<AdminOffersPage />} />
+                <Route path="settings" element={<AdminSettingsPage />} />
+                <Route path="settings/:section" element={<AdminSettingsPage />} />
               </Route>
 
               {/* 404 Catch-All */}
@@ -176,7 +218,7 @@ export default function App() {
                     <p className="text-sm text-[#64748B]">The requested page could not be located.</p>
                     <a
                       href="/"
-                      className="px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] rounded-lg"
+                      className="px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full"
                     >
                       Return to Edufy Home
                     </a>
@@ -184,9 +226,12 @@ export default function App() {
                 }
               />
             </Routes>
+            </MaintenanceGate>
+            <WhatsAppButton />
           </BrowserRouter>
         </CartWishlistProvider>
       </CourseProgressProvider>
     </AuthProvider>
+    </SettingsProvider>
   );
 }

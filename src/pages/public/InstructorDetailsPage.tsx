@@ -41,9 +41,9 @@ export const InstructorDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+    <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-12 space-y-12">
       {/* Profile Header */}
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 sm:p-10 flex flex-col md:flex-row items-start gap-8">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 sm:p-10 flex flex-col md:flex-row items-start gap-8">
         <img
           src={instructor.avatar}
           alt={instructor.name}
@@ -83,7 +83,7 @@ export const InstructorDetailsPage: React.FC = () => {
           Courses Taught by {instructor.name}
         </h2>
         {authoredCourses.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center text-xs text-[#64748B]">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center text-xs text-[#64748B]">
             <BookOpen className="w-8 h-8 text-[#64748B] mx-auto opacity-40 mb-2" />
             <p className="font-semibold text-sm text-[#111827]">No courses authored yet</p>
             <p>Courses published by this instructor will appear here.</p>

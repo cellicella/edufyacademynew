@@ -40,7 +40,7 @@ export const StudentProfilePage: React.FC = () => {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Profile Card */}
-        <div className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0] space-y-6">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
           <h2 className="font-display text-base font-bold text-[#111827]">Public Profile</h2>
 
           <div className="flex items-center gap-5">
@@ -58,7 +58,7 @@ export const StudentProfilePage: React.FC = () => {
               >
                 Change Avatar
               </button>
-              <div className="text-[11px] text-[#64748B] mt-1">JPG, GIF or PNG. Max size 2MB.</div>
+              <div className="text-[13px] text-[#64748B] mt-1">JPG, GIF or PNG. Max size 2MB.</div>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export const StudentProfilePage: React.FC = () => {
         </div>
 
         {/* Notifications & Preferences */}
-        <div className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0] space-y-4">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-4">
           <h2 className="font-display text-base font-bold text-[#111827]">
             Notification Preferences
           </h2>
@@ -138,7 +138,7 @@ export const StudentProfilePage: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="px-6 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg shadow transition-colors flex items-center gap-1.5"
+            className="px-6 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center gap-1.5"
           >
             <Save className="w-4 h-4" />
             <span>Save Changes</span>

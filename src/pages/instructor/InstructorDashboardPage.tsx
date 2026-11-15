@@ -53,48 +53,48 @@ export const InstructorDashboardPage: React.FC = () => {
 
       {/* KPI Metrics Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B] font-medium">Total Lifetime Earnings</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             ${loading ? '...' : (metrics?.totalEarnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">
+          <div className="text-[13px] text-[#64748B] mt-1">
             From captured student enrollments
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B] font-medium">Active Students</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             {loading ? '...' : (metrics?.activeStudents ?? 0).toLocaleString()}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">
+          <div className="text-[13px] text-[#64748B] mt-1">
             Across {courses.length} published {courses.length === 1 ? 'course' : 'courses'}
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B] font-medium">Instructor Rating</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 flex items-center gap-1 tabular-nums">
             <span>{loading ? '...' : (metrics?.averageCourseRating ?? 5.0)}</span>
             <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Verified course average</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Verified course average</div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B] font-medium">Total Course Enrollments</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             {loading ? '...' : (metrics?.totalEnrollments ?? 0).toLocaleString()}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Direct enrollments recorded</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Direct enrollments recorded</div>
         </div>
       </div>
 
       {/* Main Grid: Authored Courses Table + Recent Sales Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Authored Courses */}
-        <div className="lg:col-span-8 bg-white rounded-xl border border-[#E2E8F0] p-6 space-y-4">
+        <div className="lg:col-span-8 bg-white rounded-2xl border border-[#E2E8F0] p-6 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
             <div>
               <h2 className="font-display text-base font-bold text-[#111827]">Published Masterclasses</h2>
@@ -102,7 +102,7 @@ export const InstructorDashboardPage: React.FC = () => {
             </div>
             <Link
               to="/instructor/courses"
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors flex items-center gap-1"
             >
               <PlusCircle className="w-3.5 h-3.5" />
               <span>Create New Course</span>
@@ -149,7 +149,7 @@ export const InstructorDashboardPage: React.FC = () => {
         </div>
 
         {/* Recent Sales Feed */}
-        <div className="lg:col-span-4 bg-white rounded-xl border border-[#E2E8F0] p-6 space-y-4">
+        <div className="lg:col-span-4 bg-white rounded-2xl border border-[#E2E8F0] p-6 space-y-4">
           <div className="pb-3 border-b border-[#E2E8F0]">
             <h2 className="font-display text-base font-bold text-[#111827]">Recent Sales</h2>
             <p className="text-xs text-[#64748B]">Live transactions from learners</p>
@@ -168,8 +168,8 @@ export const InstructorDashboardPage: React.FC = () => {
                     <span className="font-bold text-[#111827]">{sale.studentName}</span>
                     <span className="font-mono font-bold text-emerald-600">+${sale.amount.toFixed(2)}</span>
                   </div>
-                  <div className="text-[11px] text-[#64748B] truncate">{sale.courseTitle}</div>
-                  <div className="text-[10px] text-[#94A3B8]">{sale.date}</div>
+                  <div className="text-[13px] text-[#64748B] truncate">{sale.courseTitle}</div>
+                  <div className="text-[12px] text-[#94A3B8]">{sale.date}</div>
                 </div>
               ))}
             </div>

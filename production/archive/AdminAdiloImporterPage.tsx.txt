@@ -1,0 +1,460 @@
+// ARCHIVED 2026-11-15: obsolete Adilo project importer page, kept for reference only (not compiled).
+// It was replaced by the CSV bulk lesson importer (src/pages/admin/AdminLessonImporterPage.tsx, route /admin/lesson-import).
+// It depended on an "adiloImportService" client and Adilo project/folder/preview/confirm API routes that no longer exist.
+// The database tables adilo_import_jobs / adilo_import_items were left unchanged.
+
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Film, FolderOpen, CheckCircle2, AlertTriangle, Loader2, RefreshCw, ArrowRight, ArrowLeft, Link2, History, Layers, PlugZap,
+} from 'lucide-react';
+import {
+  courseService, adiloImportService, AdiloProjectSummary, AdiloFolderSummary, AdiloVideoSummary, AdiloPreviewRow, AdiloImportResult,
+} from '../../services/api';
+import { Course } from '../../types';
+import { AdminPageHeader, ErrorBanner, formatDate } from '../../components/admin/AdminUI';
+import { useCartWishlist } from '../../context/CartWishlistContext';
+
+type SelectMode = 'all' | 'folder' | 'manual';
+type SectionMode = 'existing' | 'new' | 'folders';
+interface Row extends AdiloPreviewRow { include: boolean; order: number; editTitle: string; editWatch: string; folderName: string | null }
+
+const WATCH_RE = /^https:\/\/adilo\.bigcommand\.com\//;
+const steps = ['Course', 'Adilo project', 'Choose videos', 'Preview & edit', 'Sections', 'Confirm'];
+
+export const AdminAdiloImporterPage: React.FC = () => {
+  const { showToast } = useCartWishlist();
+  const [step, setStep] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // 1. course
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [courseId, setCourseId] = useState('');
+  const course = courses.find((c) => c.id === courseId);
+
+  // 2. project
+  const [projects, setProjects] = useState<AdiloProjectSummary[] | null>(null);
+  const [projectId, setProjectId] = useState('');
+
+  // 3. videos
+  const [folders, setFolders] = useState<AdiloFolderSummary[]>([]);
+  const [videos, setVideos] = useState<AdiloVideoSummary[]>([]);
+  const [videoTotal, setVideoTotal] = useState(0);
+  const [selectMode, setSelectMode] = useState<SelectMode>('all');
+  const [folderId, setFolderId] = useState('');
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  // 4. preview
+  const [rows, setRows] = useState<Row[]>([]);
+  const [bulkLinks, setBulkLinks] = useState('');
+
+  // 5. sections
+  const [sectionMode, setSectionMode] = useState<SectionMode>('new');
+  const [sectionId, setSectionId] = useState('');
+  const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [updateExisting, setUpdateExisting] = useState(false);
+
+  // result + history
+  const [result, setResult] = useState<AdiloImportResult | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    courseService.getAdminCourses().then(setCourses).catch((e) => setError(e.message));
+    adiloImportService.history().then((h) => setHistory(h.jobs)).catch(() => undefined);
+  }, []);
+
+  const run = async <T,>(label: string, fn: () => Promise<T>): Promise<T | undefined> => {
+    setBusy(label);
+    setError(null);
+    try {
+      return await fn();
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong');
+      return undefined;
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const fileFolder = useMemo(() => {
+    const m: Record<string, string> = {};
+    folders.forEach((f) => f.fileIds.forEach((id) => (m[id] = f.name)));
+    return m;
+  }, [folders]);
+  const foldersKnown = folders.some((f) => f.filesKnown);
+
+  const selectedIds = useMemo(() => {
+    if (selectMode === 'all') return videos.map((v) => v.id);
+    if (selectMode === 'folder') {
+      const f = folders.find((x) => x.id === folderId);
+      return f ? videos.filter((v) => f.fileIds.includes(v.id)).map((v) => v.id) : [];
+    }
+    return videos.filter((v) => picked.has(v.id)).map((v) => v.id);
+  }, [selectMode, videos, folders, folderId, picked]);
+
+  /* ---------------- step actions ---------------- */
+  const connect = () =>
+    run('projects', async () => {
+      const r = await adiloImportService.projects();
+      setProjects(r.projects);
+      setStep(1);
+    });
+
+  const loadProject = (id: string) =>
+    run('videos', async () => {
+      setProjectId(id);
+      const [f, v] = await Promise.all([adiloImportService.folders(id), adiloImportService.videos(id, courseId)]);
+      setFolders(f.folders);
+      setVideos(v.videos);
+      setVideoTotal(v.total);
+      setPicked(new Set());
+      setSelectMode('all');
+      setStep(2);
+    });
+
+  const buildPreview = () =>
+    run('preview', async () => {
+      if (!selectedIds.length) throw new Error('Select at least one video.');
+      const r = await adiloImportService.preview(courseId, selectedIds);
+      setRows(
+        r.rows.map((row, i) => ({
+          ...row,
+          include: row.status !== 'error',
+          order: i + 1,
+          editTitle: row.existingTitle || row.title,
+          editWatch: row.watchUrl || '',
+          folderName: fileFolder[row.fileId] || null,
+        }))
+      );
+      setStep(3);
+    });
+
+  const applyBulkLinks = () => {
+    const links = bulkLinks.split(/\s+/).map((s) => s.trim()).filter(Boolean);
+    const ordered = [...rows].filter((r) => r.include).sort((a, b) => a.order - b.order);
+    const map = new Map(ordered.map((r, i) => [r.fileId, links[i]]));
+    setRows(rows.map((r) => (map.get(r.fileId) && WATCH_RE.test(map.get(r.fileId)!) ? { ...r, editWatch: map.get(r.fileId)! } : r)));
+    showToast(`Applied ${Math.min(links.length, ordered.length)} watch links in display order`, 'info');
+  };
+
+  const included = rows.filter((r) => r.include);
+  const newCount = included.filter((r) => r.status === 'ready').length;
+  const dupCount = included.filter((r) => r.status === 'already_imported').length;
+  const missingLinks = included.filter((r) => !WATCH_RE.test(r.editWatch)).length;
+
+  const doImport = (onlyFileIds?: string[]) =>
+    run('import', async () => {
+      const list = (onlyFileIds ? rows.filter((r) => onlyFileIds.includes(r.fileId)) : included).sort((a, b) => a.order - b.order);
+      const r = await adiloImportService.confirm({
+        courseId,
+        projectId,
+        sectionMode,
+        sectionId: sectionMode === 'existing' ? sectionId : undefined,
+        newSectionTitle: sectionMode === 'new' ? newSectionTitle || 'Imported videos' : undefined,
+        updateExisting,
+        items: list.map((row) => ({
+          fileId: row.fileId,
+          title: row.editTitle.trim() || row.title,
+          order: row.order,
+          watchUrl: WATCH_RE.test(row.editWatch) ? row.editWatch : null,
+          folderName: row.folderName,
+        })),
+      });
+      setResult(r);
+      setStep(6);
+      // After a retry the section already exists — retries go into it
+      if (sectionMode === 'new') setSectionMode('existing');
+      adiloImportService.history().then((h) => setHistory(h.jobs)).catch(() => undefined);
+      showToast(`Import finished: ${r.imported} new, ${r.updated} updated, ${r.skipped} skipped, ${r.failed} failed`, r.failed ? 'warning' : 'success');
+    });
+
+  const retryFailed = async () => {
+    if (!result) return;
+    const failed = result.results.filter((r) => r.status === 'failed').map((r) => r.fileId);
+    // Refresh sections so the newly created section can be targeted
+    const refreshed = await courseService.getAdminCourses().catch(() => courses);
+    setCourses(refreshed);
+    const firstOk = result.results.find((r) => r.lessonId);
+    const sec = refreshed.find((c) => c.id === courseId)?.curriculum.find((s) => s.lessons.some((l) => l.id === firstOk?.lessonId));
+    if (sec && sectionMode !== 'folders') {
+      setSectionMode('existing');
+      setSectionId(sec.id);
+    }
+    doImport(failed);
+  };
+
+  /* ---------------- UI ---------------- */
+  const card = 'bg-white rounded-[24px] border border-[#E2E8F0] p-6 sm:p-8';
+  const Stepper = (
+    <ol className="flex flex-wrap gap-2 mb-8">
+      {steps.map((s, i) => (
+        <li key={s} className={`h-10 px-4 inline-flex items-center gap-2 rounded-full text-[14px] font-semibold ${i === step ? 'bg-[#004AAD] text-white' : i < step ? 'bg-[#E8EFFB] text-[#003B8B]' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
+          <span className="tabular-nums">{i + 1}</span> {s}
+        </li>
+      ))}
+    </ol>
+  );
+
+  return (
+    <div>
+      <AdminPageHeader
+        eyebrow="Course management"
+        title="Adilo video importer"
+        description="Turn videos in an Adilo project into lessons for an Edufy course — no duplicates, safe to retry."
+      />
+      {error && <ErrorBanner message={error} />}
+      {step < 6 && Stepper}
+
+      {/* STEP 1 — course */}
+      {step === 0 && (
+        <section className={card}>
+          <h2 className="font-display text-[22px] font-bold">1. Select an Edufy course</h2>
+          <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="ed-field mt-4 max-w-xl">
+            <option value="">Choose a course…</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>{c.title} ({c.totalLessons} lessons)</option>
+            ))}
+          </select>
+          <div className="mt-6 p-4 rounded-2xl bg-[#F7F9FC] flex items-start gap-3 max-w-xl">
+            <PlugZap className="w-5 h-5 text-[#004AAD] mt-0.5" />
+            <p className="text-[15px] text-[#475569]">2. Connect to Adilo — the server uses its own API keys; nothing secret is sent to your browser.</p>
+          </div>
+          <button disabled={!courseId || !!busy} onClick={connect} className="ed-btn ed-btn-filled mt-6">
+            {busy === 'projects' ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlugZap className="w-5 h-5" />} Connect to Adilo
+          </button>
+        </section>
+      )}
+
+      {/* STEP 2/3 — project */}
+      {step === 1 && projects && (
+        <section className={card}>
+          <h2 className="font-display text-[22px] font-bold">3–4. Choose an Adilo project</h2>
+          <p className="text-[15px] text-[#64748B] mt-1">{projects.length} projects found in your Adilo account.</p>
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {projects.map((p) => (
+              <button key={p.id} disabled={!!busy} onClick={() => loadProject(p.id)} className="text-left p-4 rounded-2xl border border-[#E2E8F0] hover:border-[#004AAD] hover:shadow-md transition">
+                <div className="flex items-center gap-2 font-semibold text-[#111827]"><FolderOpen className="w-5 h-5 text-[#5E17EB]" />{p.title}</div>
+                <div className="text-[13px] text-[#64748B] mt-1 font-mono">{p.id}</div>
+                {busy === 'videos' && projectId === p.id && <div className="text-[13px] text-[#004AAD] mt-2">Loading videos…</div>}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setStep(0)} className="ed-btn ed-btn-text mt-6"><ArrowLeft className="w-4 h-4" /> Back</button>
+        </section>
+      )}
+
+      {/* STEP 5/6 — videos */}
+      {step === 2 && (
+        <section className={card}>
+          <h2 className="font-display text-[22px] font-bold">5–6. Choose videos</h2>
+          <p className="text-[15px] text-[#64748B] mt-1">
+            {videos.length} videos loaded{videoTotal && videoTotal !== videos.length ? ` (Adilo reports ${videoTotal} files)` : ''} · {folders.length} folders
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            {(['all', 'folder', 'manual'] as SelectMode[]).map((m) => (
+              <button key={m} onClick={() => setSelectMode(m)} disabled={m === 'folder' && !foldersKnown}
+                className={`ed-chip ${selectMode === m ? '!bg-[#004AAD] !text-white' : ''} disabled:opacity-40`}>
+                {m === 'all' ? 'All videos in project' : m === 'folder' ? 'Videos from a folder' : 'Pick individually'}
+              </button>
+            ))}
+          </div>
+          {!foldersKnown && folders.length > 0 && (
+            <p className="mt-3 text-[14px] text-amber-700">Adilo's folder details did not include their videos, so folder filtering and folder-based sections aren't available for this project.</p>
+          )}
+          {selectMode === 'folder' && (
+            <select value={folderId} onChange={(e) => setFolderId(e.target.value)} className="ed-field mt-4 max-w-md">
+              <option value="">Choose a folder…</option>
+              {folders.filter((f) => f.filesKnown).map((f) => <option key={f.id} value={f.id}>{f.name} ({f.fileIds.length})</option>)}
+            </select>
+          )}
+
+          <div className="mt-5 max-h-[420px] overflow-y-auto border border-[#E2E8F0] rounded-2xl divide-y divide-[#EEF2F7]">
+            {videos.map((v) => {
+              const checked = selectedIds.includes(v.id);
+              return (
+                <label key={v.id} className="flex items-center gap-3 px-4 py-3 text-[15px] hover:bg-[#F7F9FC] cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4" checked={checked} disabled={selectMode !== 'manual'}
+                    onChange={() => setPicked((p) => { const n = new Set(p); n.has(v.id) ? n.delete(v.id) : n.add(v.id); return n; })} />
+                  <Film className="w-4 h-4 text-[#94A3B8]" />
+                  <span className="flex-1 min-w-0 truncate">{v.name || v.id}</span>
+                  {fileFolder[v.id] && <span className="text-[13px] text-[#64748B]">{fileFolder[v.id]}</span>}
+                  <span className="font-mono text-[12px] text-[#94A3B8]">{v.id}</span>
+                  {v.importedLessonId && <span className="text-[12px] font-semibold text-emerald-700 bg-emerald-50 px-2 rounded">Already imported</span>}
+                </label>
+              );
+            })}
+            {videos.length === 0 && <div className="p-8 text-center text-[#64748B]">This project has no videos.</div>}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => setStep(1)} className="ed-btn ed-btn-text"><ArrowLeft className="w-4 h-4" /> Back</button>
+            <button disabled={!selectedIds.length || !!busy} onClick={buildPreview} className="ed-btn ed-btn-filled">
+              {busy === 'preview' ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />} Preview {selectedIds.length} video{selectedIds.length === 1 ? '' : 's'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* STEP 7/8 — preview & edit */}
+      {step === 3 && (
+        <section className={card}>
+          <h2 className="font-display text-[22px] font-bold">7–8. Preview, rename & order</h2>
+          <p className="text-[15px] text-[#64748B] mt-1">{newCount} new · {dupCount} already imported · {missingLinks} missing a watch link</p>
+
+          <div className="mt-5 overflow-x-auto border border-[#E2E8F0] rounded-2xl">
+            <table className="w-full text-left text-[14px]">
+              <thead className="bg-[#F7F9FC] text-[12px] uppercase tracking-wide text-[#64748B]">
+                <tr><th className="px-3 py-3">Use</th><th className="px-3 py-3 w-20">Order</th><th className="px-3 py-3">Lesson title</th><th className="px-3 py-3">Adilo file ID</th><th className="px-3 py-3">Duration</th><th className="px-3 py-3">Folder</th><th className="px-3 py-3">Watch link</th><th className="px-3 py-3">Status</th></tr>
+              </thead>
+              <tbody className="divide-y divide-[#EEF2F7]">
+                {[...rows].sort((a, b) => a.order - b.order).map((r) => (
+                  <tr key={r.fileId} className={r.include ? '' : 'opacity-50'}>
+                    <td className="px-3 py-2"><input type="checkbox" className="w-4 h-4" checked={r.include} disabled={r.status === 'error'} onChange={() => setRows(rows.map((x) => x.fileId === r.fileId ? { ...x, include: !x.include } : x))} /></td>
+                    <td className="px-3 py-2"><input type="number" min={1} value={r.order} onChange={(e) => setRows(rows.map((x) => x.fileId === r.fileId ? { ...x, order: Number(e.target.value) || 1 } : x))} className="w-16 h-9 px-2 rounded-lg border border-[#CBD5E1]" /></td>
+                    <td className="px-3 py-2 min-w-[240px]"><input value={r.editTitle} onChange={(e) => setRows(rows.map((x) => x.fileId === r.fileId ? { ...x, editTitle: e.target.value } : x))} className="w-full h-9 px-2 rounded-lg border border-[#CBD5E1]" /></td>
+                    <td className="px-3 py-2 font-mono text-[12px] text-[#64748B]">{r.fileId}</td>
+                    <td className="px-3 py-2 tabular-nums">{r.durationFormatted || '—'}</td>
+                    <td className="px-3 py-2 text-[#64748B]">{r.folderName || '—'}</td>
+                    <td className="px-3 py-2 min-w-[260px]">
+                      <input value={r.editWatch} placeholder="https://adilo.bigcommand.com/watch/…" onChange={(e) => setRows(rows.map((x) => x.fileId === r.fileId ? { ...x, editWatch: e.target.value.trim() } : x))}
+                        className={`w-full h-9 px-2 rounded-lg border ${!r.editWatch || WATCH_RE.test(r.editWatch) ? 'border-[#CBD5E1]' : 'border-rose-400'}`} />
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {r.status === 'ready' && <span className="text-[12px] font-semibold text-[#003B8B] bg-[#E8EFFB] px-2 py-1 rounded">New</span>}
+                      {r.status === 'already_imported' && <span className="text-[12px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">Already imported</span>}
+                      {r.status === 'error' && <span className="text-[12px] font-semibold text-rose-700 bg-rose-50 px-2 py-1 rounded" title={r.error}>Error</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {missingLinks > 0 && (
+            <div className="mt-5 p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
+              <div className="flex items-start gap-2 text-[15px] text-amber-900">
+                <Link2 className="w-5 h-5 mt-0.5 shrink-0" />
+                <span>Adilo's API does not return watch links, and the watch ID differs from the file ID (e.g. file <code>6fsPpVHa</code> → <code>/watch/49ragFyA</code>). Paste each video's link from Adilo → Share, or paste them all below in display order (one per line). Lessons without a link are imported but won't play until a link is added.</span>
+              </div>
+              <textarea rows={4} value={bulkLinks} onChange={(e) => setBulkLinks(e.target.value)} className="ed-field !h-auto py-3 text-[14px]" placeholder={'https://adilo.bigcommand.com/watch/xxxx\nhttps://adilo.bigcommand.com/watch/yyyy'} />
+              <button onClick={applyBulkLinks} disabled={!bulkLinks.trim()} className="ed-btn ed-btn-tonal ed-btn-sm">Apply links in order</button>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => setStep(2)} className="ed-btn ed-btn-text"><ArrowLeft className="w-4 h-4" /> Back</button>
+            <button disabled={!included.length} onClick={() => setStep(4)} className="ed-btn ed-btn-filled">Choose sections <ArrowRight className="w-5 h-5" /></button>
+          </div>
+        </section>
+      )}
+
+      {/* STEP 9 — sections */}
+      {step === 4 && course && (
+        <section className={card}>
+          <h2 className="font-display text-[22px] font-bold">9. Where should the lessons go?</h2>
+          <div className="mt-5 space-y-3 max-w-2xl">
+            <label className="flex items-start gap-3 p-4 rounded-2xl border border-[#E2E8F0] cursor-pointer">
+              <input type="radio" checked={sectionMode === 'new'} onChange={() => setSectionMode('new')} className="mt-1" />
+              <div className="flex-1"><div className="font-semibold">Create a new section</div>
+                {sectionMode === 'new' && <input value={newSectionTitle} onChange={(e) => setNewSectionTitle(e.target.value)} placeholder="Section title, e.g. Module 1 — Getting started" className="ed-field mt-3" />}</div>
+            </label>
+            <label className={`flex items-start gap-3 p-4 rounded-2xl border border-[#E2E8F0] ${course.curriculum.length ? 'cursor-pointer' : 'opacity-50'}`}>
+              <input type="radio" disabled={!course.curriculum.length} checked={sectionMode === 'existing'} onChange={() => setSectionMode('existing')} className="mt-1" />
+              <div className="flex-1"><div className="font-semibold">Add to an existing section</div>
+                {sectionMode === 'existing' && (
+                  <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="ed-field mt-3">
+                    <option value="">Choose a section…</option>
+                    {course.curriculum.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.lessons.length} lessons)</option>)}
+                  </select>
+                )}</div>
+            </label>
+            <label className={`flex items-start gap-3 p-4 rounded-2xl border border-[#E2E8F0] ${foldersKnown ? 'cursor-pointer' : 'opacity-50'}`}>
+              <input type="radio" disabled={!foldersKnown} checked={sectionMode === 'folders'} onChange={() => setSectionMode('folders')} className="mt-1" />
+              <div><div className="font-semibold">One section per Adilo folder</div>
+                <div className="text-[14px] text-[#64748B]">{foldersKnown ? 'Videos outside any folder go into “Imported videos”.' : 'Not available — Adilo did not return folder contents for this project.'}</div></div>
+            </label>
+            <label className="flex items-center gap-3 pt-2 text-[15px]">
+              <input type="checkbox" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} />
+              Update title & metadata of videos that are already imported (otherwise they're skipped)
+            </label>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => setStep(3)} className="ed-btn ed-btn-text"><ArrowLeft className="w-4 h-4" /> Back</button>
+            <button disabled={sectionMode === 'existing' && !sectionId} onClick={() => setStep(5)} className="ed-btn ed-btn-filled">Review <ArrowRight className="w-5 h-5" /></button>
+          </div>
+        </section>
+      )}
+
+      {/* STEP 10/11 — confirm */}
+      {step === 5 && course && (
+        <section className={card}>
+          <h2 className="font-display text-[22px] font-bold">10. Confirm import</h2>
+          <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+            <div className="p-4 rounded-2xl bg-[#F7F9FC]"><dt className="text-[13px] text-[#64748B]">Course</dt><dd className="font-semibold">{course.title}</dd></div>
+            <div className="p-4 rounded-2xl bg-[#F7F9FC]"><dt className="text-[13px] text-[#64748B]">Section</dt><dd className="font-semibold">
+              {sectionMode === 'new' ? `New: ${newSectionTitle || 'Imported videos'}` : sectionMode === 'existing' ? course.curriculum.find((s) => s.id === sectionId)?.title : 'One per Adilo folder'}</dd></div>
+            <div className="p-4 rounded-2xl bg-[#F7F9FC]"><dt className="text-[13px] text-[#64748B]">Videos selected</dt><dd className="font-semibold">{included.length} ({newCount} new, {dupCount} already imported → {updateExisting ? 'update' : 'skip'})</dd></div>
+            <div className="p-4 rounded-2xl bg-[#F7F9FC]"><dt className="text-[13px] text-[#64748B]">Watch links</dt><dd className={`font-semibold ${missingLinks ? 'text-amber-700' : ''}`}>{included.length - missingLinks} of {included.length} provided</dd></div>
+          </dl>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => setStep(4)} className="ed-btn ed-btn-text"><ArrowLeft className="w-4 h-4" /> Back</button>
+            <button disabled={!!busy} onClick={() => doImport()} className="ed-btn ed-btn-filled">
+              {busy === 'import' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Layers className="w-5 h-5" />} {busy === 'import' ? `Importing ${included.length} videos…` : 'Import All Videos'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* RESULT */}
+      {step === 6 && result && (
+        <section className={card}>
+          <div className="flex items-center gap-3">
+            {result.failed ? <AlertTriangle className="w-7 h-7 text-amber-600" /> : <CheckCircle2 className="w-7 h-7 text-emerald-600" />}
+            <h2 className="font-display text-[24px] font-bold">Import {result.failed ? 'finished with errors' : 'complete'}</h2>
+          </div>
+          <p className="mt-2 text-[16px] text-[#475569]">{result.imported} imported · {result.updated} updated · {result.skipped} skipped · {result.failed} failed</p>
+          <ul className="mt-5 divide-y divide-[#EEF2F7] border-y border-[#EEF2F7]">
+            {result.results.map((r) => (
+              <li key={r.fileId} className="py-2.5 flex flex-wrap items-center gap-3 text-[14px]">
+                <span className={`w-24 text-[12px] font-semibold uppercase ${r.status === 'failed' ? 'text-rose-700' : r.status === 'skipped' ? 'text-[#64748B]' : 'text-emerald-700'}`}>{r.status}</span>
+                <span className="flex-1 min-w-0 truncate">{r.title}</span>
+                <span className="font-mono text-[12px] text-[#94A3B8]">{r.fileId}</span>
+                {(r.error || r.warning) && <span className="w-full pl-28 text-[13px] text-[#64748B]">{r.error || r.warning}</span>}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {result.failed > 0 && <button disabled={!!busy} onClick={retryFailed} className="ed-btn ed-btn-filled"><RefreshCw className="w-4 h-4" /> Retry {result.failed} failed</button>}
+            <Link to={`/admin/courses/${courseId}/edit`} className="ed-btn ed-btn-outlined">Open course editor</Link>
+            <Link to={`/courses/${courseId}`} className="ed-btn ed-btn-text">View course page</Link>
+            <button onClick={() => { setResult(null); setStep(0); }} className="ed-btn ed-btn-text">New import</button>
+          </div>
+        </section>
+      )}
+
+      {/* HISTORY */}
+      <section className="mt-8 bg-white rounded-[24px] border border-[#E2E8F0] overflow-hidden">
+        <div className="p-6 pb-3 flex items-center gap-2"><History className="w-5 h-5 text-[#004AAD]" /><h2 className="font-display text-[20px] font-bold">Import history</h2></div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[14px]">
+            <thead className="bg-[#F7F9FC] text-[12px] uppercase tracking-wide text-[#64748B]"><tr><th className="px-6 py-3">When</th><th className="px-6 py-3">Course</th><th className="px-6 py-3">Project</th><th className="px-6 py-3">Result</th><th className="px-6 py-3">Status</th></tr></thead>
+            <tbody className="divide-y divide-[#EEF2F7]">
+              {history.map((j) => (
+                <tr key={j.id}>
+                  <td className="px-6 py-3 whitespace-nowrap">{formatDate(j.created_at)}</td>
+                  <td className="px-6 py-3">{j.courses?.title || j.course_id}</td>
+                  <td className="px-6 py-3 font-mono text-[12px]">{j.project_id}</td>
+                  <td className="px-6 py-3">{j.imported} new · {j.updated} updated · {j.skipped} skipped · {j.failed} failed</td>
+                  <td className="px-6 py-3">{j.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {history.length === 0 && <div className="p-8 text-center text-[#64748B]">No imports yet.</div>}
+        </div>
+      </section>
+    </div>
+  );
+};

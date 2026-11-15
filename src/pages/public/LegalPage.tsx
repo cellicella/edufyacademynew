@@ -75,7 +75,7 @@ export const LegalPage: React.FC = () => {
         <div className="text-xs text-[#64748B] mt-1">Last Updated: {lastUpdated}</div>
       </div>
 
-      <div className="bg-white p-6 sm:p-10 rounded-xl border border-[#E2E8F0] prose prose-slate max-w-none text-xs sm:text-sm text-[#111827] leading-relaxed space-y-4">
+      <div className="bg-white p-6 sm:p-10 rounded-2xl border border-[#E2E8F0] prose prose-slate max-w-none text-xs sm:text-sm text-[#111827] leading-relaxed space-y-4">
         {content}
       </div>
     </div>

@@ -25,7 +25,7 @@ export const InstructorStudentsPage: React.FC = () => {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-[#64748B] space-y-2">
             <div className="h-6 bg-slate-200 rounded w-48 mx-auto animate-pulse" />
@@ -62,7 +62,7 @@ export const InstructorStudentsPage: React.FC = () => {
                         />
                         <div>
                           <div className="font-bold text-[#111827]">{st.name}</div>
-                          <div className="text-[11px] text-[#64748B]">{st.email}</div>
+                          <div className="text-[13px] text-[#64748B]">{st.email}</div>
                         </div>
                       </div>
                     </td>
@@ -75,14 +75,14 @@ export const InstructorStudentsPage: React.FC = () => {
                             style={{ width: `${st.progress}%` }}
                           />
                         </div>
-                        <span className="font-mono text-[11px] font-bold text-[#111827] tabular-nums">
+                        <span className="font-mono text-[13px] font-bold text-[#111827] tabular-nums">
                           {st.progress}%
                         </span>
                       </div>
                     </td>
                     <td className="p-4 text-[#64748B]">{st.lastActive}</td>
                     <td className="p-4 text-right">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                      <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Active</span>
                       </span>

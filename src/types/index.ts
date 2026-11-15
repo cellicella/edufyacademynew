@@ -19,7 +19,10 @@ export interface LessonResource {
   id: string;
   name: string;
   size: string;
-  downloadUrl: string;
+  /** Public URL (optional) */
+  downloadUrl?: string;
+  /** Path inside the private 'course-materials' bucket — served via signed URL */
+  storagePath?: string;
 }
 
 export interface QuizQuestion {
@@ -51,6 +54,13 @@ export interface Lesson {
   quizId?: string;
   isFreePreview?: boolean;
   resources?: LessonResource[];
+  quiz?: Quiz;
+  /** Adilo-hosted video (set by the server after a verified upload) */
+  adiloFileId?: string | null;
+  adiloEmbedUrl?: string | null;
+  videoTitle?: string | null;
+  videoDuration?: number | null;
+  videoStatus?: string | null;
 }
 
 export interface CourseSection {
@@ -152,4 +162,18 @@ export interface BlogPost {
   readTime: string;
   category: string;
   tags: string[];
+}
+
+export interface Bundle {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  thumbnail: string;
+  price: number;
+  isPublished: boolean;
+  courses: Course[];
+  /** Sum of the individual course prices (for "you save" display) */
+  coursesValue: number;
 }

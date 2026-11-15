@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EdufyLogo } from '../components/common/EdufyLogo';
-import { RoleSwitcher } from '../components/common/RoleSwitcher';
 import { ToastContainer } from '../components/common/ToastContainer';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -34,22 +33,22 @@ export const InstructorLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F9FC] flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#111827] text-white border-r border-slate-800 shrink-0">
-        <div className="p-5 border-b border-slate-800">
-          <EdufyLogo variant="white" size="md" />
+      <aside className="hidden md:flex flex-col w-72 bg-white text-[#111827] border-r border-[#E2E8F0] shrink-0">
+        <div className="p-5 border-b border-[#E2E8F0]">
+          <EdufyLogo size="md" />
         </div>
 
         {/* Instructor Badge */}
-        <div className="p-4 mx-3 my-3 bg-slate-800/60 border border-slate-700/60 rounded-xl flex items-center gap-3">
+        <div className="p-4 mx-3 my-3 bg-[#F7F9FC] border border-[#E2E8F0] rounded-xl flex items-center gap-3">
           <img
             src={currentUser?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'}
             alt="Instructor"
             referrerPolicy="no-referrer"
-            className="w-10 h-10 rounded-full object-cover border border-slate-600"
+            className="w-10 h-10 rounded-full object-cover border border-[#E2E8F0]"
           />
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs font-bold text-white truncate">{currentUser?.name || 'Instructor'}</h4>
-            <span className="text-[10px] text-blue-400 font-semibold block uppercase tracking-wider">Instructor Portal</span>
+            <h4 className="text-xs font-bold text-[#111827] truncate">{currentUser?.name || 'Instructor'}</h4>
+            <span className="text-[12px] text-[#5E17EB] font-semibold block uppercase tracking-wider">Instructor Portal</span>
           </div>
         </div>
 
@@ -62,10 +61,10 @@ export const InstructorLayout: React.FC = () => {
               <Link
                 key={item.href}
                 to={item.href}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-3 px-4 h-12 rounded-full text-[15px] font-semibold transition-colors ${
                   isActive
-                    ? 'bg-[#004AAD] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'bg-[#F1EAFE] text-[#4A12BC]'
+                    : 'text-[#475569] hover:text-[#111827] hover:bg-[#F7F9FC]'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -74,10 +73,10 @@ export const InstructorLayout: React.FC = () => {
             );
           })}
 
-          <div className="pt-4 mt-4 border-t border-slate-800">
+          <div className="pt-4 mt-4 border-t border-[#E2E8F0]">
             <Link
               to="/courses"
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+              className="flex items-center gap-3 px-4 h-12 rounded-full text-[15px] font-medium text-[#475569] hover:text-[#111827] hover:bg-[#F7F9FC] transition-colors"
             >
               <Compass className="w-4 h-4" />
               <span>Public Marketplace</span>
@@ -86,16 +85,13 @@ export const InstructorLayout: React.FC = () => {
         </nav>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-800 space-y-2">
-          <div className="bg-slate-900 rounded-lg p-1">
-            <RoleSwitcher />
-          </div>
+        <div className="p-4 border-t border-[#E2E8F0] space-y-2">
           <button
             onClick={() => {
               logout();
               navigate('/');
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out</span>
@@ -104,15 +100,12 @@ export const InstructorLayout: React.FC = () => {
       </aside>
 
       {/* Mobile Top Header */}
-      <div className="md:hidden bg-[#111827] text-white p-4 flex items-center justify-between border-b border-slate-800">
-        <EdufyLogo variant="white" size="sm" />
+      <div className="md:hidden bg-white text-[#111827] p-4 flex items-center justify-between border-b border-[#E2E8F0]">
+        <EdufyLogo size="sm" />
         <div className="flex items-center gap-2">
-          <div className="bg-slate-900 rounded p-1">
-            <RoleSwitcher />
-          </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-white"
+            className="p-2 text-[#111827]"
             aria-label="Toggle instructor menu"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -121,22 +114,22 @@ export const InstructorLayout: React.FC = () => {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 text-white p-4 space-y-2 border-b border-slate-800">
+        <div className="md:hidden bg-white text-[#111827] p-4 space-y-2 border-b border-[#E2E8F0]">
           {navItems.map((item) => (
             <Link
               key={item.href}
               to={item.href}
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 rounded-lg hover:bg-slate-800"
+              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#111827] rounded-lg hover:bg-[#F7F9FC]"
             >
-              <item.icon className="w-4 h-4 text-blue-400" />
+              <item.icon className="w-4 h-4 text-[#5E17EB]" />
               <span>{item.label}</span>
             </Link>
           ))}
           <Link
             to="/courses"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-400"
+            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#5E17EB]"
           >
             <Compass className="w-4 h-4" />
             <span>Back to Marketplace</span>
@@ -146,7 +139,7 @@ export const InstructorLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="hidden md:flex items-center justify-between h-16 px-8 bg-white border-b border-[#E2E8F0]">
+        <header className="hidden md:flex items-center justify-between h-[72px] px-10 bg-white/90 backdrop-blur border-b border-[#E2E8F0]">
           <div>
             <h1 className="text-sm font-bold text-[#111827]">Instructor Studio</h1>
           </div>

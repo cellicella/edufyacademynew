@@ -20,6 +20,11 @@ export const MarketplacePage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [mobileFilterOpen, setMobileFilterOpen] = useState<boolean>(false);
+  // Categories come from the database (Admin → Categories)
+  const [dbCategories, setDbCategories] = useState<{ id: string; label: string }[]>([]);
+  useEffect(() => {
+    courseService.getCategories().then((cats) => setDbCategories(cats.map((c) => ({ id: c.slug, label: c.name }))));
+  }, []);
 
   // Filter state
   const searchQuery = searchParams.get('search') || '';
@@ -64,15 +69,7 @@ export const MarketplacePage: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const categories = [
-    { id: 'all', label: 'All Categories' },
-    { id: 'web-development', label: 'Web Development' },
-    { id: 'ai-data-science', label: 'Artificial Intelligence' },
-    { id: 'ui-ux-design', label: 'UI/UX Design' },
-    { id: 'cloud-devops', label: 'Cloud & DevOps' },
-    { id: 'business-leadership', label: 'Business & Leadership' },
-    { id: 'cybersecurity', label: 'Cybersecurity' },
-  ];
+  const categories = [{ id: 'all', label: 'All Categories' }, ...dbCategories];
 
   const levels = [
     { id: 'all', label: 'All Levels' },
@@ -95,29 +92,24 @@ export const MarketplacePage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-      {/* Page Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#004AAD] via-[#003B8B] to-[#5E17EB] rounded-2xl p-6 sm:p-10 mb-8 text-white shadow-xl border border-blue-400/20">
-        <div className="absolute inset-0 bg-edufy-dots opacity-20 pointer-events-none" />
-        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/5 blur-2xl pointer-events-none" />
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-lg text-xs font-semibold text-blue-200 border border-white/20 mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Curated Technology Library</span>
-          </div>
-          <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Explore All Masterclasses
+    <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-8 sm:py-12">
+      {/* Page header — editorial */}
+      <header className="pt-4 pb-10 mb-10 border-b border-[#E2E8F0] grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+        <div className="lg:col-span-8">
+          <span className="ed-eyebrow">Course catalogue</span>
+          <h1 className="ed-display mt-5 text-[2.5rem] sm:text-[3.25rem] leading-[1.06]">
+            {searchQuery ? <>Results for “{searchQuery}”</> : 'Find your next course.'}
           </h1>
-          <p className="text-xs sm:text-sm text-blue-100 mt-2 leading-relaxed">
-            Hands-on curriculum engineered for real-world production. Filter by domain, skill depth, or pricing to find your next career breakthrough.
+          <p className="mt-5 text-[18px] sm:text-[19px] leading-[1.7] text-[#475569] measure">
+            Filter by discipline, level or price. Every course includes lifetime access and a verifiable certificate on completion.
           </p>
         </div>
-      </div>
+      </header>
 
       {/* Main Layout: Filters Sidebar + Course Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         {/* Desktop Sidebar Filters */}
-        <aside className="hidden lg:block bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-6">
+        <aside className="hidden lg:block bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0]">
             <div className="flex items-center gap-2 font-bold text-sm text-[#111827]">
               <Filter className="w-4 h-4 text-[#004AAD]" />
@@ -221,7 +213,7 @@ export const MarketplacePage: React.FC = () => {
         {/* Courses Area */}
         <div className="lg:col-span-3 space-y-6">
           {/* Controls Bar: Results Count, Mobile Filter Button, View Mode, Sort */}
-          <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileFilterOpen(true)}
@@ -274,9 +266,9 @@ export const MarketplacePage: React.FC = () => {
 
           {/* Course List / Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 py-12">
               {[1, 2, 3].map((n) => (
-                <div key={n} className="bg-white rounded-xl border border-[#E2E8F0] p-4 h-72 animate-pulse space-y-3">
+                <div key={n} className="bg-white rounded-2xl border border-[#E2E8F0] p-4 h-72 animate-pulse space-y-3">
                   <div className="bg-slate-200 h-36 rounded-lg"></div>
                   <div className="bg-slate-200 h-4 w-3/4 rounded"></div>
                   <div className="bg-slate-200 h-3 w-1/2 rounded"></div>
@@ -284,7 +276,7 @@ export const MarketplacePage: React.FC = () => {
               ))}
             </div>
           ) : paginatedCourses.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-[#EBF3FF] text-[#004AAD] flex items-center justify-center mx-auto">
                 <Search className="w-6 h-6" />
               </div>
@@ -296,7 +288,7 @@ export const MarketplacePage: React.FC = () => {
               </p>
               <button
                 onClick={resetFilters}
-                className="mt-2 px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] rounded-lg hover:bg-[#003B8B] transition-colors"
+                className="mt-2 px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full hover:bg-[#003B8B] transition-colors"
               >
                 Clear All Filters
               </button>
@@ -305,7 +297,7 @@ export const MarketplacePage: React.FC = () => {
             <div
               className={
                 viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6'
                   : 'space-y-4'
               }
             >

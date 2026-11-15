@@ -1,5 +1,8 @@
+import { LessonContentEditor } from '../../components/instructor/LessonContentEditor';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
+import { ResponsiveVideo } from '../../components/common/ResponsiveVideo';
+import { extractVideoSource, resolveVideo } from '../../utils/videoEmbed';
 import { useAuth } from '../../context/AuthContext';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { courseService } from '../../services/api';
@@ -29,17 +32,6 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-const CATEGORIES = [
-  'Web Development',
-  'Artificial Intelligence',
-  'Data Science & Analytics',
-  'UI/UX Design',
-  'Ethical Hacking & Cyber Security',
-  'Mobile App Development',
-  'Cloud Computing & DevOps',
-  'Digital Marketing',
-  'Business & Entrepreneurship',
-];
 
 const LEVELS: CourseLevel[] = ['All Levels', 'Beginner', 'Intermediate', 'Advanced'];
 
@@ -62,7 +54,16 @@ export const CourseCreatorPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState('');
+  // Categories are managed by admins (Admin → Categories) and loaded from the database
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  useEffect(() => {
+    courseService.getCategories().then((cats) => {
+      const names = cats.map((c) => c.name);
+      setCategoryOptions(names);
+      setCategory((cur) => cur || names[0] || '');
+    });
+  }, []);
   const [level, setLevel] = useState<CourseLevel>('All Levels');
   const [language, setLanguage] = useState('English');
   const [price, setPrice] = useState('999');
@@ -98,7 +99,6 @@ export const CourseCreatorPage: React.FC = () => {
           title: 'Course Welcome & Learning Path Roadmap',
           durationMinutes: 8,
           type: 'video',
-          videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
           isFreePreview: true,
           contentText: 'Welcome to this comprehensive masterclass. Let us review what we will achieve together.',
         },
@@ -118,7 +118,7 @@ export const CourseCreatorPage: React.FC = () => {
             setTitle(c.title);
             setSubtitle(c.subtitle || '');
             setDescription(c.description || '');
-            setCategory(c.category || CATEGORIES[0]);
+            setCategory(c.category || '');
             setLevel(c.level || 'All Levels');
             setLanguage(c.language || 'English');
             setPrice(c.price.toString());
@@ -221,6 +221,24 @@ export const CourseCreatorPage: React.FC = () => {
   const updateLesson = (sIdx: number, lIdx: number, fields: Partial<Lesson>) => {
     const next = [...curriculum];
     next[sIdx].lessons[lIdx] = { ...next[sIdx].lessons[lIdx], ...fields };
+    setCurriculum(next);
+  };
+
+  const moveLesson = (sIdx: number, lIdx: number, dir: -1 | 1) => {
+    const next = [...curriculum];
+    const lessons = [...next[sIdx].lessons];
+    const j = lIdx + dir;
+    if (j < 0 || j >= lessons.length) return;
+    [lessons[lIdx], lessons[j]] = [lessons[j], lessons[lIdx]];
+    next[sIdx] = { ...next[sIdx], lessons };
+    setCurriculum(next);
+  };
+
+  const moveSection = (sIdx: number, dir: -1 | 1) => {
+    const j = sIdx + dir;
+    if (j < 0 || j >= curriculum.length) return;
+    const next = [...curriculum];
+    [next[sIdx], next[j]] = [next[j], next[sIdx]];
     setCurriculum(next);
   };
 
@@ -354,7 +372,7 @@ export const CourseCreatorPage: React.FC = () => {
                 {courseId ? 'Edit Masterclass' : 'Udemy-Style Course Creator'}
               </h1>
               <span
-                className={`text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full ${
+                className={`text-[12px] uppercase font-extrabold px-2 py-0.5 rounded-full ${
                   isPublished || status === 'published'
                     ? 'bg-emerald-100 text-emerald-800'
                     : status === 'pending_review'
@@ -415,7 +433,7 @@ export const CourseCreatorPage: React.FC = () => {
               type="button"
               disabled={saving || status === 'pending_review'}
               onClick={() => handleSaveCourse(false, true)}
-              className="px-4 py-2 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors flex items-center gap-1.5 shadow disabled:opacity-50"
+              className="px-4 py-2 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors flex items-center gap-1.5 shadow disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
               <span>{status === 'pending_review' ? 'Submitted for Review' : 'Submit for Review'}</span>
@@ -425,7 +443,7 @@ export const CourseCreatorPage: React.FC = () => {
       </div>
 
       {/* Udemy-Style Step Navigation Tabs */}
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-1.5 flex flex-wrap gap-1 shadow-xs">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-1.5 flex flex-wrap gap-1 shadow-xs">
         {[
           { key: 'details', label: '1. Course Details', icon: Layers },
           { key: 'learners', label: '2. Intended Learners', icon: Sparkles },
@@ -511,7 +529,8 @@ export const CourseCreatorPage: React.FC = () => {
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg focus:outline-none focus:border-[#004AAD] text-[#111827]"
                 >
-                  {CATEGORIES.map((c) => (
+                  {!category && <option value="">Choose a category…</option>}
+                  {[...new Set([...(category ? [category] : []), ...categoryOptions])].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -551,7 +570,7 @@ export const CourseCreatorPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('learners')}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors"
             >
               Continue to Intended Learners &rarr;
             </button>
@@ -685,7 +704,7 @@ export const CourseCreatorPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('curriculum')}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors"
             >
               Continue to Curriculum Builder &rarr;
             </button>
@@ -706,7 +725,7 @@ export const CourseCreatorPage: React.FC = () => {
             <button
               type="button"
               onClick={addSection}
-              className="px-3.5 py-2 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors flex items-center gap-1.5 self-start sm:self-auto shadow-xs"
+              className="px-3.5 py-2 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors flex items-center gap-1.5 self-start sm:self-auto shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>Add Section</span>
@@ -739,6 +758,8 @@ export const CourseCreatorPage: React.FC = () => {
                       <Plus className="w-3.5 h-3.5" />
                       <span>Add Lesson</span>
                     </button>
+                    <button type="button" onClick={() => moveSection(sIdx, -1)} className="p-1.5 text-[#64748B] hover:text-[#004AAD] rounded" title="Move section up">↑</button>
+                    <button type="button" onClick={() => moveSection(sIdx, 1)} className="p-1.5 text-[#64748B] hover:text-[#004AAD] rounded" title="Move section down">↓</button>
                     <button
                       type="button"
                       onClick={() => removeSection(sIdx)}
@@ -759,7 +780,7 @@ export const CourseCreatorPage: React.FC = () => {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-2 flex-1">
-                          <span className="text-[11px] font-semibold text-[#64748B]">
+                          <span className="text-[13px] font-semibold text-[#64748B]">
                             {sIdx + 1}.{lIdx + 1}
                           </span>
                           <input
@@ -781,11 +802,11 @@ export const CourseCreatorPage: React.FC = () => {
                               onChange={(e) => updateLesson(sIdx, lIdx, { durationMinutes: parseInt(e.target.value, 10) || 5 })}
                               className="w-14 px-1.5 py-1 text-xs text-center border border-[#CBD5E1] rounded focus:outline-none"
                             />
-                            <span className="text-[11px] text-[#64748B]">min</span>
+                            <span className="text-[13px] text-[#64748B]">min</span>
                           </div>
 
                           {/* Free Preview Toggle */}
-                          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#111827] cursor-pointer">
+                          <label className="flex items-center gap-1.5 text-[13px] font-semibold text-[#111827] cursor-pointer">
                             <input
                               type="checkbox"
                               checked={!!lesson.isFreePreview}
@@ -795,6 +816,8 @@ export const CourseCreatorPage: React.FC = () => {
                             <span>Free Preview</span>
                           </label>
 
+                          <button type="button" onClick={() => moveLesson(sIdx, lIdx, -1)} className="p-1 text-[#64748B] hover:text-[#004AAD] rounded" title="Move up">↑</button>
+                          <button type="button" onClick={() => moveLesson(sIdx, lIdx, 1)} className="p-1 text-[#64748B] hover:text-[#004AAD] rounded" title="Move down">↓</button>
                           <button
                             type="button"
                             onClick={() => removeLesson(sIdx, lIdx)}
@@ -806,64 +829,15 @@ export const CourseCreatorPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Lesson Content Tabs & Upload Controls */}
-                      <div className="pt-2 border-t border-[#F1F5F9] grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        {/* Video upload or URL */}
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold text-[#64748B] flex items-center justify-between">
-                            <span className="flex items-center gap-1">
-                              <Video className="w-3 h-3 text-[#004AAD]" />
-                              Video Stream Source
-                            </span>
-                            {lesson.videoUrl && (
-                              <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-                                <Check className="w-3 h-3" /> Attached
-                              </span>
-                            )}
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={lesson.videoUrl || ''}
-                              onChange={(e) => updateLesson(sIdx, lIdx, { videoUrl: e.target.value })}
-                              placeholder="Direct Video URL (.mp4 or streaming)"
-                              className="flex-1 px-2.5 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded focus:outline-none focus:border-[#004AAD]"
-                            />
-                            <label className="px-2.5 py-1.5 bg-[#EBF3FF] hover:bg-[#D9E9FF] text-[#004AAD] font-bold rounded cursor-pointer shrink-0 transition-colors">
-                              {uploading === `video-${sIdx}-${lIdx}` ? 'Uploading...' : 'Upload'}
-                              <input
-                                type="file"
-                                accept="video/*"
-                                className="hidden"
-                                disabled={uploading !== null}
-                                onChange={(e) =>
-                                  handleFileUpload(
-                                    e,
-                                    'course-videos',
-                                    (url, path) => updateLesson(sIdx, lIdx, { videoUrl: url, storageAssetPath: path }),
-                                    `video-${sIdx}-${lIdx}`
-                                  )
-                                }
-                              />
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Article or Supplementary Notes */}
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold text-[#64748B] flex items-center gap-1">
-                            <FileText className="w-3 h-3 text-[#004AAD]" />
-                            <span>Lesson Description & Markdown Notes</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={lesson.contentText || ''}
-                            onChange={(e) => updateLesson(sIdx, lIdx, { contentText: e.target.value })}
-                            placeholder="Key takeaways, terminal commands, or study notes..."
-                            className="w-full px-2.5 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded focus:outline-none focus:border-[#004AAD]"
-                          />
-                        </div>
-                      </div>
+                      <LessonContentEditor
+                        lesson={lesson}
+                        onChange={(fields) => updateLesson(sIdx, lIdx, fields)}
+                        onUpload={handleFileUpload}
+                        uploading={uploading}
+                        uploadKey={`l-${sIdx}-${lIdx}`}
+                        courseId={courseId}
+                        notify={showToast}
+                      />
                     </div>
                   ))}
                 </div>
@@ -882,7 +856,7 @@ export const CourseCreatorPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('media')}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors"
             >
               Continue to Course Media &rarr;
             </button>
@@ -939,8 +913,8 @@ export const CourseCreatorPage: React.FC = () => {
                     <p className="text-xs font-semibold text-[#111827]">
                       {uploading === 'thumb' ? 'Uploading to Supabase...' : 'Upload 16:9 Thumbnail Image'}
                     </p>
-                    <p className="text-[11px] text-[#64748B]">PNG, JPG, or WEBP up to 50MB</p>
-                    <label className="inline-block mt-2 px-3 py-1.5 text-xs font-bold text-white bg-[#004AAD] rounded-lg cursor-pointer shadow-xs hover:bg-[#003B8B]">
+                    <p className="text-[13px] text-[#64748B]">PNG, JPG, or WEBP up to 50MB</p>
+                    <label className="inline-block mt-2 px-3 py-1.5 text-sm font-bold text-white bg-[#004AAD] rounded-full cursor-pointer shadow-xs hover:bg-[#003B8B]">
                       Browse Files
                       <input
                         type="file"
@@ -962,7 +936,7 @@ export const CourseCreatorPage: React.FC = () => {
 
               {/* Direct URL input fallback */}
               <div>
-                <label className="block text-[11px] text-[#64748B] mb-1">Or paste direct image URL</label>
+                <label className="block text-[13px] text-[#64748B] mb-1">Or paste direct image URL</label>
                 <input
                   type="text"
                   value={thumbnailUrl}
@@ -980,19 +954,17 @@ export const CourseCreatorPage: React.FC = () => {
               </label>
               <div className="aspect-video bg-[#F8FAFC] border-2 border-dashed border-[#CBD5E1] rounded-xl overflow-hidden flex flex-col items-center justify-center p-4 relative">
                 {promoVideoUrl ? (
-                  <video
-                    src={promoVideoUrl}
-                    controls
-                    className="w-full h-full object-cover rounded-lg"
-                  />
+                  <div className="absolute inset-0">
+                    <ResponsiveVideo source={promoVideoUrl} title="Promotional video" />
+                  </div>
                 ) : (
                   <div className="text-center space-y-2">
                     <Video className="w-8 h-8 text-[#64748B] mx-auto" />
                     <p className="text-xs font-semibold text-[#111827]">
                       {uploading === 'promo' ? 'Uploading Video...' : 'Upload Free Promotional Video'}
                     </p>
-                    <p className="text-[11px] text-[#64748B]">MP4 or WEBM video format</p>
-                    <label className="inline-block mt-2 px-3 py-1.5 text-xs font-bold text-white bg-[#004AAD] rounded-lg cursor-pointer shadow-xs hover:bg-[#003B8B]">
+                    <p className="text-[13px] text-[#64748B]">MP4 or WEBM video format</p>
+                    <label className="inline-block mt-2 px-3 py-1.5 text-sm font-bold text-white bg-[#004AAD] rounded-full cursor-pointer shadow-xs hover:bg-[#003B8B]">
                       Browse Video
                       <input
                         type="file"
@@ -1014,14 +986,28 @@ export const CourseCreatorPage: React.FC = () => {
 
               {/* Direct URL input fallback */}
               <div>
-                <label className="block text-[11px] text-[#64748B] mb-1">Or paste direct promo video URL</label>
-                <input
-                  type="text"
-                  value={promoVideoUrl}
-                  onChange={(e) => setPromoVideoUrl(e.target.value)}
-                  placeholder="https://commondatastorage.googleapis.com/.../sample.mp4"
-                  className="w-full px-3 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg focus:outline-none focus:border-[#004AAD]"
-                />
+                <label className="block text-[13px] text-[#64748B] mb-1">Or paste an Adilo embed code / link, a YouTube or Vimeo link, or an MP4 URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoVideoUrl}
+                    onChange={(e) => {
+                      // Store only the player link, never the pasted HTML
+                      const v = e.target.value;
+                      setPromoVideoUrl(/<\s*iframe/i.test(v) ? extractVideoSource(v) || v : v);
+                    }}
+                    placeholder="<iframe src=&quot;https://adilo.bigcommand.com/watch/…&quot;> or https://adilo.bigcommand.com/watch/…"
+                    className={`w-full px-3 py-1.5 text-xs bg-[#F8FAFC] border rounded-lg focus:outline-none focus:border-[#004AAD] ${promoVideoUrl && !resolveVideo(promoVideoUrl) ? 'border-rose-400' : 'border-[#CBD5E1]'}`}
+                  />
+                  {promoVideoUrl && (
+                    <button type="button" onClick={() => setPromoVideoUrl('')} className="px-3 text-xs font-semibold text-rose-600 border border-[#E2E8F0] rounded-lg hover:bg-rose-50 shrink-0">
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {promoVideoUrl && !resolveVideo(promoVideoUrl) && (
+                  <p className="mt-1 text-[12px] text-rose-600">This link isn’t supported. Use an Adilo embed code or link, YouTube, Vimeo, or a direct MP4 file.</p>
+                )}
               </div>
             </div>
           </div>
@@ -1037,7 +1023,7 @@ export const CourseCreatorPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('pricing')}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors"
             >
               Continue to Pricing & Publish &rarr;
             </button>
@@ -1174,7 +1160,7 @@ export const CourseCreatorPage: React.FC = () => {
                   type="button"
                   disabled={saving || status === 'pending_review'}
                   onClick={() => handleSaveCourse(false, true)}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors flex items-center gap-1.5 shadow"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors flex items-center gap-1.5 shadow"
                 >
                   <Send className="w-4 h-4" />
                   <span>{status === 'pending_review' ? 'In Review by Admin' : 'Submit for Admin Review'}</span>
@@ -1225,7 +1211,7 @@ export const CourseCreatorPage: React.FC = () => {
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-[#004AAD] uppercase tracking-wider bg-[#EBF3FF] px-2 py-0.5 rounded">
+                <span className="text-[12px] font-bold text-[#004AAD] uppercase tracking-wider bg-[#EBF3FF] px-2 py-0.5 rounded">
                   {category}
                 </span>
                 <h2 className="font-display text-xl font-bold text-[#111827] mt-1.5">{title || 'Untitled Course'}</h2>
@@ -1255,7 +1241,7 @@ export const CourseCreatorPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#004AAD] rounded-lg shadow"
+                  className="px-5 py-2 text-sm font-bold text-white bg-[#004AAD] rounded-full shadow"
                 >
                   Enroll Now
                 </button>

@@ -38,38 +38,38 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Platform Registered Users</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             {loading ? '...' : (analytics?.totalUsers ?? 0).toLocaleString()}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">
+          <div className="text-[13px] text-[#64748B] mt-1">
             {analytics?.activeStudents ?? 0} students · {analytics?.certifiedInstructors ?? 0} instructors
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Captured Gross Revenue</div>
           <div className="font-display text-2xl font-bold text-[#004AAD] mt-1 tabular-nums">
             ${loading ? '...' : (analytics?.monthlyGrossRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Processed through Razorpay</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Processed through Razorpay</div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Published Masterclasses</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             {loading ? '...' : (analytics?.totalCourses ?? 0).toLocaleString()}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Active database courses</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Active database courses</div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Curriculum Completion Rate</div>
           <div className="font-display text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
             {loading ? '...' : (analytics?.averageCompletionRate ?? 0)}%
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Across enrolled learners</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Across enrolled learners</div>
         </div>
       </div>
 
@@ -77,7 +77,7 @@ export const AdminDashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
           to="/admin/users"
-          className="p-6 bg-white rounded-xl border border-[#E2E8F0] hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col justify-between"
+          className="p-6 bg-white rounded-2xl border border-[#E2E8F0] hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col justify-between"
         >
           <div>
             <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
@@ -93,7 +93,7 @@ export const AdminDashboardPage: React.FC = () => {
 
         <Link
           to="/admin/courses"
-          className="p-6 bg-white rounded-xl border border-[#E2E8F0] hover:border-blue-500/50 hover:shadow-md transition-all flex flex-col justify-between"
+          className="p-6 bg-white rounded-2xl border border-[#E2E8F0] hover:border-blue-500/50 hover:shadow-md transition-all flex flex-col justify-between"
         >
           <div>
             <div className="w-10 h-10 rounded-lg bg-[#EBF3FF] text-[#004AAD] flex items-center justify-center mb-3">
@@ -109,7 +109,7 @@ export const AdminDashboardPage: React.FC = () => {
 
         <Link
           to="/admin/reports"
-          className="p-6 bg-white rounded-xl border border-[#E2E8F0] hover:border-purple-500/50 hover:shadow-md transition-all flex flex-col justify-between"
+          className="p-6 bg-white rounded-2xl border border-[#E2E8F0] hover:border-purple-500/50 hover:shadow-md transition-all flex flex-col justify-between"
         >
           <div>
             <div className="w-10 h-10 rounded-lg bg-[#F4EFFF] text-[#5E17EB] flex items-center justify-center mb-3">

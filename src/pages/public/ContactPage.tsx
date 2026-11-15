@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, CheckCircle2, Clock, MessageCircle } from 'lucide-react';
+import { useSiteSettings } from '../../context/SettingsContext';
+import { isHttps, telHref, waHref } from '../../config/siteSettings';
 
 export const ContactPage: React.FC = () => {
+  const { settings } = useSiteSettings();
+  const c = settings.contact;
+  const wa = settings.whatsapp;
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -16,19 +21,17 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-12">
       <div className="max-w-2xl mb-12">
         <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-[#111827]">
-          Contact Edufy Academy
+          {c.pageTitle || 'Contact Edufy Academy'}
         </h1>
-        <p className="text-sm text-[#64748B] mt-2">
-          Have questions about our curriculum, enterprise team licenses, or instructor partnerships? Our student advisory team is here to assist.
-        </p>
+        {c.pageIntro && <p className="text-sm text-[#64748B] mt-2">{c.pageIntro}</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Contact Form */}
-        <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0] shadow-xs">
+        <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] shadow-xs">
           {submitted ? (
             <div className="text-center py-12 space-y-3">
               <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
@@ -105,7 +108,7 @@ export const ContactPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg shadow transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2"
               >
                 <span>Send Message</span>
                 <Send className="w-3.5 h-3.5" />
@@ -116,21 +119,53 @@ export const ContactPage: React.FC = () => {
 
         {/* Office Details */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-4">
             <h3 className="font-display text-base font-bold text-[#111827]">Direct Contact</h3>
             <div className="space-y-3 text-xs text-[#64748B]">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-[#004AAD]" />
-                <span>support@edufy.academy</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-[#004AAD]" />
-                <span>+1 (800) 542-3389 (Mon-Fri 9am-6pm PT)</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 text-[#004AAD]" />
-                <span>500 Howard Street, Suite 400, San Francisco, CA 94105</span>
-              </div>
+              {c.supportEmail && (
+                <a href={`mailto:${c.supportEmail}`} className="flex items-center gap-3 hover:text-[#004AAD]">
+                  <Mail className="w-4 h-4 text-[#004AAD]" />
+                  <span>{c.supportEmail} <span className="text-[#94A3B8]">(support)</span></span>
+                </a>
+              )}
+              {c.salesEmail && (
+                <a href={`mailto:${c.salesEmail}`} className="flex items-center gap-3 hover:text-[#004AAD]">
+                  <Mail className="w-4 h-4 text-[#004AAD]" />
+                  <span>{c.salesEmail} <span className="text-[#94A3B8]">(sales)</span></span>
+                </a>
+              )}
+              {[c.primaryPhone, c.secondaryPhone].filter(Boolean).map((p) => (
+                <a key={p} href={telHref(p)} className="flex items-center gap-3 hover:text-[#004AAD]">
+                  <Phone className="w-4 h-4 text-[#004AAD]" />
+                  <span>{p}</span>
+                </a>
+              ))}
+              {wa.enabled && waHref(wa.number) && (
+                <a href={waHref(wa.number, wa.welcomeMessage)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:text-[#004AAD]">
+                  <MessageCircle className="w-4 h-4 text-[#004AAD]" />
+                  <span>WhatsApp {wa.number}</span>
+                </a>
+              )}
+              {c.businessHours && (
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-[#004AAD]" />
+                  <span>{c.businessHours}</span>
+                </div>
+              )}
+              {c.address && (
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-4 h-4 text-[#004AAD] mt-0.5" />
+                  <span className="whitespace-pre-line">
+                    {c.address}
+                    {isHttps(c.mapsUrl) && (
+                      <>
+                        {' '}
+                        <a href={c.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-[#004AAD] font-semibold">View on map</a>
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

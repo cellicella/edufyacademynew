@@ -1,0 +1,23 @@
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.env
+.env.local
+expo-env.d.ts
+npm-debug.*
+yarn-error.*
+.DS_Store
+.test-build/
+
+# Firebase config for Android push (keep out of git)
+google-services.json
+GoogleService-Info.plist

@@ -33,8 +33,8 @@ export const StudentCertificatesPage: React.FC = () => {
           <div className="h-4 bg-slate-100 rounded-md w-96 mt-2 animate-pulse" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 h-56 animate-pulse" />
-          <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 h-56 animate-pulse" />
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 h-56 animate-pulse" />
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 h-56 animate-pulse" />
         </div>
       </div>
     );
@@ -63,7 +63,7 @@ export const StudentCertificatesPage: React.FC = () => {
           <div className="pt-2 flex justify-center gap-3">
             <Link
               to="/student/courses"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors shadow-xs"
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Go to My Courses</span>
@@ -82,7 +82,7 @@ export const StudentCertificatesPage: React.FC = () => {
           {certificates.map((cert) => (
             <div
               key={cert.id}
-              className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-[#5E17EB]/40 transition-colors"
+              className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-[#5E17EB]/40 transition-colors"
             >
               <div>
                 <div className="flex items-center justify-between text-xs mb-3">
@@ -150,7 +150,7 @@ export const StudentCertificatesPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#004AAD]">
+                <span className="text-[13px] font-bold uppercase tracking-widest text-[#004AAD]">
                   Certificate of Professional Achievement
                 </span>
                 <p className="text-xs text-[#64748B]">This is to certify that</p>
@@ -168,7 +168,7 @@ export const StudentCertificatesPage: React.FC = () => {
               <div className="pt-4 flex items-center justify-between text-xs text-[#64748B] border-t border-slate-200">
                 <div className="text-left">
                   <div className="font-semibold text-[#111827]">{selectedCert.instructorName}</div>
-                  <div className="text-[10px]">Lead Faculty Instructor</div>
+                  <div className="text-[12px]">Lead Faculty Instructor</div>
                 </div>
 
                 <div className="text-center">
@@ -180,12 +180,12 @@ export const StudentCertificatesPage: React.FC = () => {
 
                 <div className="text-right">
                   <div className="font-semibold text-[#111827]">{selectedCert.issueDate}</div>
-                  <div className="text-[10px]">Date of Conformance</div>
+                  <div className="text-[12px]">Date of Conformance</div>
                 </div>
               </div>
 
               {/* Verification Barcode / Hash Info */}
-              <div className="bg-slate-100 p-3 rounded-lg text-left text-[10px] text-[#64748B] font-mono space-y-0.5">
+              <div className="bg-slate-100 p-3 rounded-lg text-left text-[12px] text-[#64748B] font-mono space-y-0.5">
                 <div className="flex justify-between">
                   <span>Credential ID: {selectedCert.certificateCode}</span>
                   <span>Assessment Score: {selectedCert.gradeScore}%</span>
@@ -213,7 +213,7 @@ export const StudentCertificatesPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => window.print()}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow-xs flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Print Certificate</span>

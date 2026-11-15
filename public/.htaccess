@@ -1,0 +1,52 @@
+# Edufy Academy website: Hostinger (LiteSpeed / Apache) settings for https://edufyacademy.com
+# Upload as ".htaccess" into public_html together with the contents of the website build.
+# The API runs separately on https://api.edufyacademy.com (Hostinger Node.js app), so nothing here
+# forwards /api: an /api path on this domain gets a plain 404 instead of the website page.
+
+Options -Indexes
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Let's Encrypt / domain verification files are always served as-is
+  RewriteRule ^\.well-known/ - [L]
+
+  # 1. HTTPS + canonical address: http://, www. → https://edufyacademy.com (one 301 redirect)
+  #    Only enable after hPanel shows the SSL certificate as Active for both edufyacademy.com and www.
+  RewriteCond %{HTTPS} !=on [OR]
+  RewriteCond %{HTTP_HOST} ^www\. [NC]
+  RewriteCond %{HTTP:X-Forwarded-Proto} !^https$ [OR]
+  RewriteCond %{HTTP_HOST} ^www\. [NC]
+  RewriteRule ^ https://edufyacademy.com%{REQUEST_URI} [L,R=301,NE]
+
+  # 2. API paths never fall through to the website (the API lives on api.edufyacademy.com)
+  RewriteRule ^api(/|$) - [R=404,L]
+
+  # 3. Single-page app: every route that is not a real file or folder returns index.html,
+  #    so refreshing /courses/abc, /student/courses or /admin/settings works.
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Fingerprinted build files never change → cache for a year
+  <FilesMatch "\.(js|css|woff2?|png|jpe?g|webp|svg|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  # Always fetch the latest page shell and deployment settings
+  <FilesMatch "^(index\.html|config\.js)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>

@@ -48,7 +48,7 @@ export const AdminUsersPage: React.FC = () => {
         </p>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <input
             type="text"
@@ -75,7 +75,7 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-[#64748B] space-y-2">
             <div className="h-6 bg-slate-200 rounded w-48 mx-auto animate-pulse" />
@@ -105,11 +105,11 @@ export const AdminUsersPage: React.FC = () => {
                   <tr key={user.id} className="hover:bg-[#F8FAFC]">
                     <td className="p-4">
                       <div className="font-bold text-[#111827]">{user.name}</div>
-                      <div className="text-[11px] text-[#64748B]">{user.email}</div>
+                      <div className="text-[13px] text-[#64748B]">{user.email}</div>
                     </td>
                     <td className="p-4">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        className={`px-2 py-0.5 rounded text-[12px] font-bold uppercase tracking-wider ${
                           user.role === 'admin'
                             ? 'bg-rose-50 text-rose-700'
                             : user.role === 'instructor'
@@ -123,7 +123,7 @@ export const AdminUsersPage: React.FC = () => {
                     <td className="p-4 font-mono">{user.enrolled}</td>
                     <td className="p-4">
                       <span
-                        className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+                        className={`inline-flex items-center gap-1 text-[13px] font-semibold ${
                           user.status === 'Active' ? 'text-emerald-700' : 'text-amber-700'
                         }`}
                       >

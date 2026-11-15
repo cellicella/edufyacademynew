@@ -62,32 +62,32 @@ export const AdminReportsPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Platform Gross Volume</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             ${totalGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Live payments recorded</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Live payments recorded</div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Platform Commission (10%)</div>
           <div className="font-display text-2xl font-bold text-[#004AAD] mt-1 tabular-nums">
             ${totalFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Platform operations net take</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Platform operations net take</div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Instructor Direct Disbursements (90%)</div>
           <div className="font-display text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
             ${totalPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Allocated to instructor payouts</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Allocated to instructor payouts</div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-[#64748B] space-y-2">
             <div className="h-6 bg-slate-200 rounded w-48 mx-auto animate-pulse" />
@@ -127,7 +127,7 @@ export const AdminReportsPage: React.FC = () => {
                       ${t.payout.toFixed(2)}
                     </td>
                     <td className="p-4 text-right">
-                      <span className="bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded text-[10px]">
+                      <span className="bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded text-[12px]">
                         {t.status}
                       </span>
                     </td>

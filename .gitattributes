@@ -1,0 +1,13 @@
+# Normalise line endings in the repository; keep binary files untouched
+* text=auto
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

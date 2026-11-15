@@ -38,7 +38,7 @@ export const StudentWishlistPage: React.FC = () => {
           </p>
           <Link
             to="/courses"
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] rounded-lg"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full"
           >
             <Compass className="w-3.5 h-3.5" />
             <span>Browse Catalog</span>

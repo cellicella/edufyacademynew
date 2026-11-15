@@ -1,0 +1,21 @@
+{
+  "name": "edufy-academy-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Edufy Academy API (Express). Prebuilt bundle: server-dist/server.mjs",
+  "type": "module",
+  "main": "server-dist/server.mjs",
+  "scripts": {
+    "start": "node server-dist/server.mjs"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "4.22.3",
+    "razorpay": "2.9.8"
+  }
+}

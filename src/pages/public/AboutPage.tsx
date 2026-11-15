@@ -4,34 +4,33 @@ import { Award, ShieldCheck, Users, Target, BookOpen, Sparkles, ArrowRight } fro
 
 export const AboutPage: React.FC = () => {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-12">
-      {/* Visual Hero Banner */}
-      <div className="relative rounded-2xl overflow-hidden shadow-2xl min-h-[340px] flex items-center p-8 sm:p-12 text-white border border-blue-400/20">
-        <img
-          src="https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1000&auto=format&fit=crop&q=80"
-          alt="Edufy Academy tech leadership and education"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#004AAD]/95 via-[#004AAD]/85 to-[#5E17EB]/80 backdrop-blur-[2px]" />
-        <div className="absolute inset-0 bg-edufy-dots opacity-20 pointer-events-none" />
-
-        <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-semibold uppercase tracking-wider text-white border border-white/25">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Our Mission & Standards</span>
-          </div>
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
-            Empowering the next generation of software architects and tech leaders.
+    <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-8 sm:py-12 space-y-12">
+      {/* Editorial hero */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        <div className="lg:col-span-6">
+          <span className="ed-eyebrow">About Edufy Academy</span>
+          <h1 className="ed-display mt-6 text-[2.5rem] sm:text-[3.25rem] leading-[1.06]">
+            Education that reflects how real work gets done.
           </h1>
-          <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
-            Edufy Academy was established on a simple conviction: technical education should reflect real-world engineering standards, not toy projects or dated video recordings.
+          <p className="mt-6 text-[19px] leading-[1.7] text-[#475569]">
+            Edufy Academy was established on a simple conviction: technical education should reflect real-world standards,
+            not toy projects or dated recordings.
           </p>
         </div>
-      </div>
+        <div className="lg:col-span-6">
+          <div className="ed-frame">
+            <img
+              src="https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1200&auto=format&fit=crop&q=80"
+              alt="A learner working through a lesson on her laptop"
+              className="w-full aspect-[4/3] object-cover"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* 3 Core Pillars */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-3">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-3">
           <div className="w-10 h-10 rounded-lg bg-[#EBF3FF] text-[#004AAD] flex items-center justify-center">
             <Target className="w-5 h-5" />
           </div>
@@ -41,7 +40,7 @@ export const AboutPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-3">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-3">
           <div className="w-10 h-10 rounded-lg bg-[#F4EFFF] text-[#5E17EB] flex items-center justify-center">
             <ShieldCheck className="w-5 h-5" />
           </div>
@@ -51,7 +50,7 @@ export const AboutPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0] space-y-3">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] space-y-3">
           <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <Users className="w-5 h-5" />
           </div>
@@ -63,7 +62,7 @@ export const AboutPage: React.FC = () => {
       </div>
 
       {/* Leadership summary */}
-      <div className="bg-white p-8 rounded-xl border border-[#E2E8F0] space-y-6">
+      <div className="bg-white p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
         <h2 className="font-display text-xl font-bold text-[#111827]">
           Pedagogical Framework
         </h2>

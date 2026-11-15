@@ -4,7 +4,9 @@ import { courseService } from '../../services/api';
 import { Course } from '../../types';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { calculateDiscountPercent, formatDuration } from '../../utils/courseUtils';
-import { CourseCard } from '../../components/common/CourseCard';
+import { CourseCard, CourseRating } from '../../components/common/CourseCard';
+import { ResponsiveVideo } from '../../components/common/ResponsiveVideo';
+import { resolveVideo } from '../../utils/videoEmbed';
 import {
   Star,
   Clock,
@@ -20,12 +22,21 @@ import {
   ShieldCheck,
   Share2,
   FileText,
+  Play,
+  X,
 } from 'lucide-react';
 
 export const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [course, setCourse] = useState<Course | null>(null);
   const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  useEffect(() => {
+    if (!previewOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPreviewOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewOpen]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'sec-1': true,
   });
@@ -82,7 +93,7 @@ export const CourseDetailsPage: React.FC = () => {
         <p className="text-sm text-[#64748B]">The masterclass you requested could not be located in the catalog.</p>
         <Link
           to="/courses"
-          className="inline-block px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] rounded-lg"
+          className="inline-block px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full"
         >
           Return to Marketplace
         </Link>
@@ -109,63 +120,87 @@ export const CourseDetailsPage: React.FC = () => {
     }
   };
 
+  const hasPreview = !!resolveVideo(course.previewVideoUrl);
+
   return (
     <div className="pb-24">
-      {/* 1. Header / Hero Banner */}
-      <section className="bg-[#111827] text-white pt-12 pb-14 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-8 space-y-4">
-              {/* Unboxed breadcrumb metadata */}
-              <div className="flex items-center gap-2 text-xs text-blue-300 font-medium">
-                <Link to="/courses" className="hover:underline">
-                  Courses
-                </Link>
-                <span aria-hidden="true">·</span>
-                <Link to={`/courses?category=${course.categorySlug}`} className="hover:underline">
-                  {course.category}
-                </Link>
-                <span aria-hidden="true">·</span>
-                <span>{course.level}</span>
+      {previewOpen && hasPreview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Preview: ${course.title}`}
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div className="w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-4 mb-3 text-white">
+              <div className="min-w-0">
+                <div className="text-[13px] text-white/70">Course preview</div>
+                <div className="font-display text-[18px] font-bold truncate">{course.title}</div>
+              </div>
+              <button type="button" onClick={() => setPreviewOpen(false)} aria-label="Close preview" className="w-10 h-10 shrink-0 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <ResponsiveVideo source={course.previewVideoUrl} title={`${course.title} — preview`} autoPlay className="rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+      {/* 1. Product hero — editorial, light, with framed preview */}
+      <section className="relative bg-[#F7F9FC] border-b border-[#E2E8F0]">
+        <div className="max-w-[1280px] mx-auto px-5 sm:px-8 pt-10 pb-14 lg:pt-14 lg:pb-20">
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[15px] text-[#64748B] mb-8">
+            <Link to="/courses" className="hover:text-[#004AAD]">Courses</Link>
+            <span aria-hidden="true">/</span>
+            <Link to={`/courses?category=${course.categorySlug}`} className="hover:text-[#004AAD]">{course.category}</Link>
+            <span aria-hidden="true">/</span>
+            <span className="text-[#111827] font-medium truncate max-w-[50vw]">{course.title}</span>
+          </nav>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+            <div className="lg:col-span-7">
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                <span className="h-8 px-3.5 inline-flex items-center rounded-full bg-[#E8EFFB] text-[14px] font-semibold text-[#003B8B]">{course.level}</span>
+                {course.bestseller && <span className="h-8 px-3.5 inline-flex items-center rounded-full bg-[#F1EAFE] text-[14px] font-semibold text-[#5E17EB]">Bestseller</span>}
+                {course.certificateOffered && <span className="h-8 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E2E8F0] text-[14px] font-medium text-[#334155]"><Award className="w-4 h-4 text-[#004AAD]" />Certificate of completion</span>}
               </div>
 
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-                {course.title}
-              </h1>
+              <h1 className="ed-display text-[2.25rem] sm:text-[2.75rem] lg:text-[3.25rem] leading-[1.08]">{course.title}</h1>
+              {course.subtitle && <p className="mt-6 text-[19px] sm:text-[20px] leading-[1.65] text-[#475569] max-w-2xl">{course.subtitle}</p>}
 
-              <p className="text-base sm:text-lg text-slate-300 leading-relaxed max-w-3xl">
-                {course.subtitle}
-              </p>
-
-              {/* Course Meta strip */}
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-white tabular-nums text-sm">{course.rating.toFixed(1)}</span>
-                  <div className="flex items-center text-amber-400">
-                    <Star className="w-4 h-4 fill-current" />
+              <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-5">
+                <div className="flex items-center gap-3">
+                  <img src={course.instructor.avatar} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
+                  <div className="leading-tight">
+                    <div className="text-[13px] text-[#64748B]">Instructor</div>
+                    <div className="text-[17px] font-semibold text-[#111827]">{course.instructor.name}</div>
                   </div>
-                  <span className="text-slate-400 tabular-nums">({course.reviewCount.toLocaleString()} reviews)</span>
                 </div>
-                <span aria-hidden="true">·</span>
-                <span className="tabular-nums">{course.enrolledCount.toLocaleString()} students enrolled</span>
-                <span aria-hidden="true">·</span>
-                <span>Created by <strong className="text-white font-medium">{course.instructor.name}</strong></span>
+                <CourseRating course={course} />
+                {course.enrolledCount > 0 && (
+                  <span className="text-[16px] text-[#475569] tabular-nums">{course.enrolledCount.toLocaleString('en-IN')} learners enrolled</span>
+                )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Last updated {course.lastUpdated}</span>
-                </div>
-                <span aria-hidden="true">·</span>
-                <div className="flex items-center gap-1">
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>{course.language}</span>
-                </div>
-                <span aria-hidden="true">·</span>
-                <div className="flex items-center gap-1">
-                  <Award className="w-3.5 h-3.5 text-[#5E17EB]" />
-                  <span>Accredited Certificate</span>
+              <dl className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-px bg-[#E2E8F0] rounded-[20px] overflow-hidden border border-[#E2E8F0]">
+                {[
+                  { k: 'Duration', v: formatDuration(course.durationHours), icon: Clock },
+                  { k: 'Lessons', v: String(course.totalLessons), icon: PlayCircle },
+                  { k: 'Language', v: course.language, icon: Globe },
+                  { k: 'Updated', v: course.lastUpdated, icon: Award },
+                ].map((m) => (
+                  <div key={m.k} className="bg-white px-5 py-4">
+                    <dt className="flex items-center gap-1.5 text-[14px] text-[#64748B]"><m.icon className="w-4 h-4" />{m.k}</dt>
+                    <dd className="mt-1 font-display text-[18px] font-bold text-[#111827] truncate">{m.v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="ed-frame">
+                <div className="ed-frame-inner relative aspect-[4/3] overflow-hidden bg-[#E8EFFB]">
+                  <img src={course.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
@@ -174,12 +209,12 @@ export const CourseDetailsPage: React.FC = () => {
       </section>
 
       {/* 2. Main Content Split */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           {/* Left Column: Syllabus, Outcomes, Description, Instructor */}
           <div className="lg:col-span-8 space-y-10">
             {/* What you'll learn checklist */}
-            <section className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0]">
+            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0]">
               <h2 className="font-display text-xl font-bold text-[#111827] mb-4">
                 What You'll Learn
               </h2>
@@ -194,7 +229,7 @@ export const CourseDetailsPage: React.FC = () => {
             </section>
 
             {/* Course Curriculum Accordion */}
-            <section className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0]">
+            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0]">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E2E8F0] gap-2 mb-6">
                 <div>
                   <h2 className="font-display text-xl font-bold text-[#111827]">
@@ -275,7 +310,7 @@ export const CourseDetailsPage: React.FC = () => {
 
                               <div className="flex items-center gap-4">
                                 {lesson.isFreePreview && (
-                                  <span className="text-[11px] font-semibold text-[#004AAD] bg-[#EBF3FF] px-2 py-0.5 rounded">
+                                  <span className="text-[13px] font-semibold text-[#004AAD] bg-[#EBF3FF] px-2 py-0.5 rounded">
                                     Preview
                                   </span>
                                 )}
@@ -292,7 +327,7 @@ export const CourseDetailsPage: React.FC = () => {
             </section>
 
             {/* Requirements & Target Audience */}
-            <section className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0] space-y-6">
+            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
               <div>
                 <h3 className="font-display text-base font-bold text-[#111827] mb-3">
                   Prerequisites
@@ -317,7 +352,7 @@ export const CourseDetailsPage: React.FC = () => {
             </section>
 
             {/* Instructor Bio Box */}
-            <section className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0]">
+            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0]">
               <h2 className="font-display text-xl font-bold text-[#111827] mb-4">
                 Instructor
               </h2>
@@ -348,7 +383,7 @@ export const CourseDetailsPage: React.FC = () => {
             </section>
 
             {/* Reviews Section */}
-            <section className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0] space-y-6">
+            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
               <h2 className="font-display text-xl font-bold text-[#111827]">
                 Student Feedback & Reviews
               </h2>
@@ -372,7 +407,7 @@ export const CourseDetailsPage: React.FC = () => {
                           />
                           <div>
                             <div className="text-xs font-bold text-[#111827]">{rev.userName}</div>
-                            <div className="text-[11px] text-[#64748B]">{rev.date}</div>
+                            <div className="text-[13px] text-[#64748B]">{rev.date}</div>
                           </div>
                         </div>
                         <div className="flex items-center text-amber-500">
@@ -392,22 +427,29 @@ export const CourseDetailsPage: React.FC = () => {
           </div>
 
           {/* Right Column: Sticky Enrollment Box */}
-          <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-4">
-            <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-lg p-6 space-y-5">
+          <div className="lg:col-span-4 lg:sticky lg:top-28 space-y-4">
+            <div className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-lg p-6 space-y-5">
               {/* Thumbnail Container */}
-              <div className="aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900 relative">
-                <img
-                  src={course.thumbnail}
-                  alt={course.title}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full bg-white/90 text-[#004AAD] flex items-center justify-center shadow-md">
-                    <PlayCircle className="w-6 h-6 fill-current" />
-                  </div>
+              {hasPreview ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(true)}
+                  aria-label={`Play preview of ${course.title}`}
+                  className="group aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900 relative block"
+                >
+                  <img src={course.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <span className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-2">
+                    <span className="w-14 h-14 rounded-full bg-white text-[#004AAD] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                      <Play className="w-6 h-6 ml-0.5 fill-current" />
+                    </span>
+                    <span className="text-[14px] font-semibold text-white drop-shadow">Preview this course</span>
+                  </span>
+                </button>
+              ) : (
+                <div className="aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900">
+                  <img src={course.thumbnail} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </div>
-              </div>
+              )}
 
               {/* Price & Savings */}
               <div>
@@ -426,7 +468,7 @@ export const CourseDetailsPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <div className="text-[11px] text-[#5E17EB] font-semibold mt-1">
+                <div className="text-[13px] text-[#5E17EB] font-semibold mt-1">
                   Guaranteed lifetime access to all future lectures
                 </div>
               </div>
@@ -436,7 +478,7 @@ export const CourseDetailsPage: React.FC = () => {
                 {enrolled ? (
                   <button
                     onClick={() => navigate(`/learn/${course.id}`)}
-                    className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl shadow transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2"
                   >
                     <span>Resume Course Player</span>
                     <PlayCircle className="w-4 h-4" />
@@ -446,7 +488,7 @@ export const CourseDetailsPage: React.FC = () => {
                     <button
                       onClick={handleEnrollClick}
                       disabled={isProcessingPayment}
-                      className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] disabled:opacity-75 disabled:cursor-not-allowed rounded-xl shadow transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] disabled:opacity-75 disabled:cursor-not-allowed rounded-full shadow transition-colors flex items-center justify-center gap-2"
                     >
                       <span>{isProcessingPayment ? 'Processing Payment...' : 'Enroll Now'}</span>
                       <CheckCircle className="w-4 h-4" />

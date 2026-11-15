@@ -1,3 +1,4 @@
+import { AuthShell } from '../../components/layout/AuthShell';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EdufyLogo } from '../../components/common/EdufyLogo';
@@ -27,9 +28,9 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <EdufyLogo size="lg" className="justify-center mb-6" />
+    <AuthShell>
+      <div className="sm:mx-auto sm:w-full sm:max-w-[480px] text-left">
+        <EdufyLogo size="lg" className="edufy-auth-logo justify-center mb-6" />
         <h2 className="font-display text-2xl font-extrabold text-[#111827]">
           Reset your password
         </h2>
@@ -38,8 +39,8 @@ export const ForgotPasswordPage: React.FC = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-md rounded-2xl border border-[#E2E8F0] sm:px-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-[480px]">
+        <div className="bg-white py-8 px-6 shadow-lg rounded-[28px] border border-[#E2E8F0] sm:px-10">
           {sent ? (
             <div className="text-center space-y-4">
               <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
@@ -47,11 +48,9 @@ export const ForgotPasswordPage: React.FC = () => {
               <p className="text-xs text-[#64748B]">
                 We have transmitted password reset guidelines to <strong className="text-[#111827]">{email}</strong>.
               </p>
-              <Link
-                to="/reset-password?token=demo-token"
-                className="inline-block mt-2 px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] rounded-lg"
-              >
-                Proceed to Reset Screen
+              <p className="text-xs text-[#64748B]">Open the link in that email to choose a new password. It can take a few minutes to arrive; check your spam folder too.</p>
+              <Link to="/login" className="inline-block mt-2 px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full">
+                Back to sign in
               </Link>
             </div>
           ) : (
@@ -62,7 +61,7 @@ export const ForgotPasswordPage: React.FC = () => {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-bold text-[#111827] uppercase tracking-wider mb-1.5">
+                <label className="block text-[15px] font-semibold text-[#111827] mb-1.5">
                   Email Address
                 </label>
                 <div className="relative">
@@ -74,13 +73,13 @@ export const ForgotPasswordPage: React.FC = () => {
                     placeholder="alex.jordan@company.com"
                     className="w-full pl-9 pr-3 py-2.5 text-xs bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#111827] focus:outline-none focus:border-[#004AAD]"
                   />
-                  <Mail className="w-4 h-4 text-[#64748B] absolute left-3 top-3" />
+                  <Mail className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg shadow transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2"
               >
                 <span>Send Reset Link</span>
                 <ArrowRight className="w-4 h-4" />
@@ -95,6 +94,6 @@ export const ForgotPasswordPage: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 };

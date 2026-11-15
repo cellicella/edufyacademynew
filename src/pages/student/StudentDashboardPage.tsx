@@ -100,7 +100,7 @@ export const StudentDashboardPage: React.FC = () => {
         <div className="bg-white p-8 rounded-2xl border border-[#E2E8F0] h-32" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white p-5 rounded-xl border border-[#E2E8F0] h-24" />
+            <div key={i} className="bg-white p-5 rounded-2xl border border-[#E2E8F0] h-24" />
           ))}
         </div>
         <div className="bg-white p-8 rounded-2xl border border-[#E2E8F0] h-64" />
@@ -132,7 +132,7 @@ export const StudentDashboardPage: React.FC = () => {
 
         <Link
           to="/courses"
-          className="px-4 py-2.5 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl shadow-xs transition-colors self-start md:self-auto flex items-center gap-1.5 whitespace-nowrap"
+          className="px-4 py-2.5 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow-xs transition-colors self-start md:self-auto flex items-center gap-1.5 whitespace-nowrap"
         >
           <span>Browse Catalog</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -141,7 +141,7 @@ export const StudentDashboardPage: React.FC = () => {
 
       {/* 2. Key Metrics Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#EBF3FF] text-[#004AAD] flex items-center justify-center">
               <Clock className="w-5 h-5" />
@@ -150,12 +150,12 @@ export const StudentDashboardPage: React.FC = () => {
               <div className="font-display text-xl font-bold text-[#111827] tabular-nums">
                 {totalHoursInvested} hrs
               </div>
-              <div className="text-[11px] text-[#64748B]">Time Invested</div>
+              <div className="text-[13px] text-[#64748B]">Time Invested</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <BookOpen className="w-5 h-5" />
@@ -164,12 +164,12 @@ export const StudentDashboardPage: React.FC = () => {
               <div className="font-display text-xl font-bold text-[#111827] tabular-nums">
                 {enrolledCourseIds.length}
               </div>
-              <div className="text-[11px] text-[#64748B]">Enrolled Courses</div>
+              <div className="text-[13px] text-[#64748B]">Enrolled Courses</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#F4EFFF] text-[#5E17EB] flex items-center justify-center">
               <Award className="w-5 h-5" />
@@ -178,12 +178,12 @@ export const StudentDashboardPage: React.FC = () => {
               <div className="font-display text-xl font-bold text-[#111827] tabular-nums">
                 {certificates.length}
               </div>
-              <div className="text-[11px] text-[#64748B]">Earned Certificates</div>
+              <div className="text-[13px] text-[#64748B]">Earned Certificates</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <Flame className="w-5 h-5" />
@@ -192,7 +192,7 @@ export const StudentDashboardPage: React.FC = () => {
               <div className="font-display text-xl font-bold text-[#111827] tabular-nums">
                 {activeStreakDays} {activeStreakDays === 1 ? 'Day' : 'Days'}
               </div>
-              <div className="text-[11px] text-[#64748B]">Active Streak</div>
+              <div className="text-[13px] text-[#64748B]">Active Streak</div>
             </div>
           </div>
         </div>
@@ -240,7 +240,7 @@ export const StudentDashboardPage: React.FC = () => {
             <div className="lg:col-span-4 flex justify-start lg:justify-end">
               <button
                 onClick={() => navigate(`/learn/${activeCourse.id}`)}
-                className="w-full sm:w-auto px-6 py-3.5 text-xs font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl shadow transition-colors flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-6 py-3.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2"
               >
                 <PlayCircle className="w-4 h-4 fill-current" />
                 <span>Resume Learning</span>
@@ -304,7 +304,7 @@ export const StudentDashboardPage: React.FC = () => {
             </p>
             <Link
               to="/courses"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors shadow-xs"
             >
               <Compass className="w-3.5 h-3.5" />
               <span>Explore Course Catalog</span>
@@ -352,10 +352,10 @@ export const StudentDashboardPage: React.FC = () => {
                   </div>
 
                   <div className="pt-2 flex items-center justify-between">
-                    <span className="text-[11px] text-[#64748B]">Instructor: {c.instructor.name}</span>
+                    <span className="text-[13px] text-[#64748B]">Instructor: {c.instructor.name}</span>
                     <button
                       onClick={() => navigate(`/learn/${c.id}`)}
-                      className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-lg transition-colors flex items-center gap-1.5"
+                      className="px-3.5 py-1.5 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors flex items-center gap-1.5"
                     >
                       <span>Continue</span>
                       <ArrowRight className="w-3 h-3" />
@@ -376,7 +376,7 @@ export const StudentDashboardPage: React.FC = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-[#004AAD]">
                 Billing & Orders
               </span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
+              <span className="text-[12px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 <span>Verified via Razorpay</span>
               </span>
@@ -430,21 +430,21 @@ export const StudentDashboardPage: React.FC = () => {
                         <div className="font-bold text-[#111827] max-w-xs truncate">
                           {courseTitle}
                         </div>
-                        <div className="text-[10px] text-[#64748B] font-mono">
+                        <div className="text-[12px] text-[#64748B] font-mono">
                           Receipt: {p.receipt}
                         </div>
                       </td>
                       <td className="py-3.5 pr-4 text-[#64748B] whitespace-nowrap">
                         {formattedDate}
                       </td>
-                      <td className="py-3.5 pr-4 font-mono text-[11px] text-[#004AAD] whitespace-nowrap">
+                      <td className="py-3.5 pr-4 font-mono text-[13px] text-[#004AAD] whitespace-nowrap">
                         {p.razorpay_payment_id || p.razorpay_order_id}
                       </td>
                       <td className="py-3.5 pr-4 font-bold text-[#111827] tabular-nums whitespace-nowrap">
                         ${typeof p.amount === 'number' ? p.amount.toFixed(2) : parseFloat(p.amount).toFixed(2)}
                       </td>
                       <td className="py-3.5 pr-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                        <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                           <span>Captured</span>
                         </span>
@@ -485,7 +485,7 @@ export const StudentDashboardPage: React.FC = () => {
               <div className="flex justify-between items-start border-b border-[#E2E8F0] pb-6">
                 <div>
                   <EdufyLogo size="sm" />
-                  <p className="text-[11px] text-[#64748B] mt-1">
+                  <p className="text-[13px] text-[#64748B] mt-1">
                     Edufy Global Education Inc.<br />
                     100 Tech Square, Suite 400<br />
                     GSTIN: 29AAAAA0000A1Z5
@@ -493,13 +493,13 @@ export const StudentDashboardPage: React.FC = () => {
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#004AAD] block">
+                  <span className="text-[12px] font-bold uppercase tracking-wider text-[#004AAD] block">
                     Tax Invoice / Receipt
                   </span>
                   <div className="font-mono font-bold text-sm text-[#111827]">
                     INV-{selectedInvoice.receipt.replace('rcpt_', '').toUpperCase()}
                   </div>
-                  <div className="text-[11px] text-[#64748B] mt-1">
+                  <div className="text-[13px] text-[#64748B] mt-1">
                     Date: {new Date(selectedInvoice.created_at).toLocaleDateString()}
                   </div>
                 </div>
@@ -508,7 +508,7 @@ export const StudentDashboardPage: React.FC = () => {
               {/* Billed To / Payment Details */}
               <div className="grid grid-cols-2 gap-4 pb-4 border-b border-[#E2E8F0]">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                  <span className="text-[12px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
                     Billed To
                   </span>
                   <div className="font-bold text-sm text-[#111827]">
@@ -519,22 +519,22 @@ export const StudentDashboardPage: React.FC = () => {
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
+                  <span className="text-[12px] font-bold uppercase tracking-wider text-[#64748B] block mb-1">
                     Payment Channel
                   </span>
                   <div className="font-semibold text-emerald-700 flex items-center justify-end gap-1">
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Razorpay Standard Checkout</span>
                   </div>
-                  <div className="text-[11px] text-[#64748B] font-mono mt-0.5">
+                  <div className="text-[13px] text-[#64748B] font-mono mt-0.5">
                     Order: {selectedInvoice.razorpay_order_id}
                   </div>
                   {selectedInvoice.razorpay_payment_id && (
-                    <div className="text-[11px] text-[#64748B] font-mono">
+                    <div className="text-[13px] text-[#64748B] font-mono">
                       PayID: {selectedInvoice.razorpay_payment_id}
                     </div>
                   )}
-                  <div className="text-[10px] text-emerald-600 font-bold uppercase mt-1">
+                  <div className="text-[12px] text-emerald-600 font-bold uppercase mt-1">
                     Status: Captured & Settled
                   </div>
                 </div>
@@ -544,7 +544,7 @@ export const StudentDashboardPage: React.FC = () => {
               <div className="space-y-3 pb-6 border-b border-[#E2E8F0]">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-[#E2E8F0] text-[#64748B] text-[11px]">
+                    <tr className="border-b border-[#E2E8F0] text-[#64748B] text-[13px]">
                       <th className="pb-2 font-semibold">Description</th>
                       <th className="pb-2 font-semibold text-center">Qty</th>
                       <th className="pb-2 font-semibold text-right">Price</th>
@@ -561,7 +561,7 @@ export const StudentDashboardPage: React.FC = () => {
                               ? selectedInvoice.notes.courseTitles.join(', ')
                               : 'Edufy Masterclass')}
                         </div>
-                        <div className="text-[10px] text-[#64748B]">
+                        <div className="text-[12px] text-[#64748B]">
                           Lifetime access, HD video streaming, project files, verifiable certificate
                         </div>
                       </td>
@@ -608,7 +608,7 @@ export const StudentDashboardPage: React.FC = () => {
               </div>
 
               {/* Footer Note */}
-              <div className="text-[11px] text-[#64748B] pt-4 border-t border-[#E2E8F0] text-center">
+              <div className="text-[13px] text-[#64748B] pt-4 border-t border-[#E2E8F0] text-center">
                 This is a computer-generated tax receipt backed by Edufy Academy and verified through Razorpay's cryptographic payment engine. Keep for your tax and educational records.
               </div>
             </div>
@@ -623,7 +623,7 @@ export const StudentDashboardPage: React.FC = () => {
               </button>
               <button
                 onClick={() => window.print()}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl flex items-center gap-1.5 shadow-xs"
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full flex items-center gap-1.5 shadow-xs"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Print / Save as PDF</span>

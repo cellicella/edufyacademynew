@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { certificateService } from '../../services/api';
 import { Certificate } from '../../types';
 import { EdufyLogo } from '../../components/common/EdufyLogo';
@@ -15,7 +16,9 @@ import {
 } from 'lucide-react';
 
 export const CertificateVerificationPage: React.FC = () => {
-  const [certCode, setCertCode] = useState('EDU-2026-98421');
+  // Supports verification links / QR codes: /verify-certificate?code=EDFY-2026-XXXXXX
+  const [searchParams] = useSearchParams();
+  const [certCode, setCertCode] = useState((searchParams.get('code') || '').trim().toUpperCase());
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     searched: boolean;
@@ -28,12 +31,10 @@ export const CertificateVerificationPage: React.FC = () => {
     certificate: null,
   });
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!certCode.trim()) return;
-
+  const runVerify = async (code: string) => {
+    if (!code.trim()) return;
     setLoading(true);
-    const response = await certificateService.verifyCertificate(certCode);
+    const response = await certificateService.verifyCertificate(code.trim());
     setResult({
       searched: true,
       valid: response.valid,
@@ -42,6 +43,18 @@ export const CertificateVerificationPage: React.FC = () => {
     });
     setLoading(false);
   };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await runVerify(certCode);
+  };
+
+  // Auto-verify when opened from a certificate's QR code / link
+  useEffect(() => {
+    const code = (searchParams.get('code') || '').trim();
+    if (code) runVerify(code.toUpperCase());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
@@ -58,7 +71,7 @@ export const CertificateVerificationPage: React.FC = () => {
       </div>
 
       {/* Verification Input Box */}
-      <div className="bg-white p-6 sm:p-8 rounded-xl border border-[#E2E8F0] shadow-sm">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] shadow-sm">
         <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <input
@@ -74,17 +87,12 @@ export const CertificateVerificationPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 text-xs sm:text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-xl transition-colors shadow flex items-center justify-center gap-2"
+            className="px-6 py-3 text-sm sm:text-sm font-semibold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors shadow flex items-center justify-center gap-2"
           >
             {loading ? 'Verifying...' : 'Verify Credential'}
           </button>
         </form>
-
-        <div className="mt-3 text-[11px] text-[#64748B]">
-          Sample valid demo codes: <button type="button" onClick={() => setCertCode('EDU-2026-98421')} className="text-[#004AAD] font-mono underline mr-2">EDU-2026-98421</button>
-          <button type="button" onClick={() => setCertCode('EDU-2026-44102')} className="text-[#004AAD] font-mono underline mr-2">EDU-2026-44102</button>
-          <button type="button" onClick={() => setCertCode('EDU-2026-77319')} className="text-[#004AAD] font-mono underline">EDU-2026-77319</button>
-        </div>
+        <p className="mt-3 text-[15px] text-[#64748B]">Enter the code printed on the certificate, for example EDFY-2026-XXXXXX.</p>
       </div>
 
       {/* Verification Result Showcase */}
@@ -105,11 +113,11 @@ export const CertificateVerificationPage: React.FC = () => {
               </div>
 
               {/* Digital Certificate Render */}
-              <div className="p-6 sm:p-8 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl border border-[#E2E8F0] space-y-6">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-2xl border border-[#E2E8F0] space-y-6">
                 <div className="flex justify-between items-start">
                   <EdufyLogo size="sm" />
                   <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-[#64748B] tracking-wider block">Certificate ID</span>
+                    <span className="text-[12px] uppercase font-bold text-[#64748B] tracking-wider block">Certificate ID</span>
                     <span className="font-mono font-bold text-xs text-[#111827]">{result.certificate.certificateCode}</span>
                   </div>
                 </div>
@@ -131,20 +139,20 @@ export const CertificateVerificationPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-[#E2E8F0] text-xs">
                   <div>
-                    <span className="text-[#64748B] block text-[11px]">Conferred Date</span>
+                    <span className="text-[#64748B] block text-[13px]">Conferred Date</span>
                     <span className="font-semibold text-[#111827]">{result.certificate.issueDate}</span>
                   </div>
                   <div>
-                    <span className="text-[#64748B] block text-[11px]">Lead Instructor</span>
+                    <span className="text-[#64748B] block text-[13px]">Lead Instructor</span>
                     <span className="font-semibold text-[#111827]">{result.certificate.instructorName}</span>
                   </div>
                   <div>
-                    <span className="text-[#64748B] block text-[11px]">Final Assessment Grade</span>
+                    <span className="text-[#64748B] block text-[13px]">Final Assessment Grade</span>
                     <span className="font-semibold text-emerald-600 font-mono">{result.certificate.gradeScore}% (Honors)</span>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[#E2E8F0] flex flex-col sm:flex-row items-center justify-between text-[10px] text-[#64748B] gap-2">
+                <div className="pt-3 border-t border-[#E2E8F0] flex flex-col sm:flex-row items-center justify-between text-[12px] text-[#64748B] gap-2">
                   <div className="flex items-center gap-1">
                     <Hash className="w-3 h-3" />
                     <span>Cryptographic Verification Hash: </span>

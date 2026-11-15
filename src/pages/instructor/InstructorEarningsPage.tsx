@@ -30,36 +30,36 @@ export const InstructorEarningsPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Accumulated Earnings</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
             ${loading ? '...' : totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Total revenue generated</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Total revenue generated</div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Current Month Estimate</div>
           <div className="font-display text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
             ${loading ? '...' : currentMonthEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-[#64748B] mt-1">Pending next monthly cycle</div>
+          <div className="text-[13px] text-[#64748B] mt-1">Pending next monthly cycle</div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Payout Channel</div>
           <div className="font-display text-base font-bold text-[#111827] mt-1 flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-[#004AAD]" />
             <span>Direct Bank Transfer / UPI</span>
           </div>
-          <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+          <div className="text-[13px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Verified & Connected
           </div>
         </div>
       </div>
 
       {/* Payout Table */}
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
         <div className="p-4 border-b border-[#E2E8F0] flex items-center justify-between">
           <h2 className="font-display text-sm font-bold text-[#111827]">Disbursement & Sales History</h2>
         </div>
@@ -96,7 +96,7 @@ export const InstructorEarningsPage: React.FC = () => {
                     </td>
                     <td className="p-4 text-[#64748B]">{item.date}</td>
                     <td className="p-4 text-right">
-                      <span className="bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded text-[10px]">
+                      <span className="bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded text-[12px]">
                         Captured
                       </span>
                     </td>

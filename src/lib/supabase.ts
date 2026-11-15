@@ -2,7 +2,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Retrieve frontend public Vite environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Public (publishable) key only — never a secret / service-role key.
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&

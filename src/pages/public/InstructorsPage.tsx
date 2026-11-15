@@ -17,29 +17,18 @@ export const InstructorsPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-      {/* Banner Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#004AAD] via-[#5271FF] to-[#5E17EB] rounded-2xl p-6 sm:p-10 mb-10 text-white shadow-xl border border-blue-400/20">
-        <div className="absolute inset-0 bg-edufy-dots opacity-20 pointer-events-none" />
-        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-lg text-xs font-semibold text-blue-100 border border-white/20 mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>World-Class Mentors</span>
-          </div>
-          <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Certified Edufy Instructors
-          </h1>
-          <p className="text-xs sm:text-sm text-blue-100 mt-2 leading-relaxed">
-            Learn from engineers, architects, and product designers who actively lead engineering initiatives at Fortune 500 tech companies.
-          </p>
-        </div>
-      </div>
+    <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-8 sm:py-12">
+      {/* Page header — editorial */}
+      <header className="pt-4 pb-10 mb-12 border-b border-[#E2E8F0]">
+        <span className="ed-eyebrow">Instructors</span>
+        <h1 className="ed-display mt-5 text-[2.5rem] sm:text-[3.25rem] leading-[1.06] max-w-3xl">Learn from practitioners.</h1>
+        <p className="mt-5 text-[18px] sm:text-[19px] leading-[1.7] text-[#475569] measure">Meet the engineers, designers and leaders who teach on Edufy Academy.</p>
+      </header>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-[#E2E8F0] p-6 h-80 animate-pulse" />
+            <div key={i} className="bg-white rounded-2xl border border-[#E2E8F0] p-6 h-80 animate-pulse" />
           ))}
         </div>
       ) : instructors.length === 0 ? (
@@ -53,7 +42,7 @@ export const InstructorsPage: React.FC = () => {
           {instructors.map((inst) => (
             <div
               key={inst.id}
-              className="group bg-white rounded-xl border border-[#E2E8F0] p-6 hover:border-[#004AAD]/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-center"
+              className="group bg-white rounded-2xl border border-[#E2E8F0] p-6 hover:border-[#004AAD]/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-center"
             >
               <div>
                 <div className="relative mb-4 mx-auto inline-block">
