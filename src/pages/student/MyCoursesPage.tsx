@@ -5,6 +5,7 @@ import { useCourseProgress } from '../../context/CourseProgressContext';
 import { courseService } from '../../services/api';
 import { Course } from '../../types';
 import { BookOpen, PlayCircle, CheckCircle2, ArrowRight, Compass } from 'lucide-react';
+import { cdnImage } from '../../lib/cdnImage';
 
 export const MyCoursesPage: React.FC = () => {
   const { enrolledCourseIds } = useCartWishlist();
@@ -125,7 +126,7 @@ export const MyCoursesPage: React.FC = () => {
             >
               <div className="aspect-video w-full bg-slate-900 relative">
                 <img
-                  src={course.thumbnail}
+                  src={cdnImage(course.thumbnail, 480)}
                   alt={course.title}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"

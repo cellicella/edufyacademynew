@@ -11,6 +11,7 @@ import { parseLink } from '@/logic/deepLinks';
 import { openTarget } from '@/lib/navigation';
 import { formatDate } from '@/utils/format';
 import { PressableScale } from './Engagement';
+import { cdnImage } from '@/logic/cdnImage';
 
 /* ------------------------------------------------------------------ cards */
 export const BlogCard: React.FC<{ post: BlogPost; width?: number }> = React.memo(({ post, width }) => (
@@ -22,7 +23,7 @@ export const BlogCard: React.FC<{ post: BlogPost; width?: number }> = React.memo
   >
     <View style={styles.cover}>
       <LinearGradient colors={gradients.brand} style={StyleSheet.absoluteFill} />
-      {post.coverImageUrl ? <Image source={{ uri: post.coverImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} /> : <Ionicons name="newspaper-outline" size={30} color="rgba(255,255,255,0.85)" />}
+      {post.coverImageUrl ? <Image source={{ uri: cdnImage(post.coverImageUrl, 720) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} /> : <Ionicons name="newspaper-outline" size={30} color="rgba(255,255,255,0.85)" />}
     </View>
     <View style={{ padding: 14, gap: 6, flex: 1 }}>
       {!!post.category && <Text style={[type.eyebrow, { fontSize: 10.5 }]} numberOfLines={1}>{post.category}</Text>}
@@ -68,7 +69,7 @@ const ArticleImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
   if (failed) return null;
   return (
     <Image
-      source={{ uri: src }}
+      source={{ uri: cdnImage(src, 1080) }}
       style={{ width: '100%', aspectRatio: ratio, borderRadius: radius.lg, backgroundColor: colors.primarySoft }}
       contentFit="cover"
       transition={200}

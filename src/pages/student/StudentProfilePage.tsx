@@ -4,6 +4,7 @@ import { useCartWishlist } from '../../context/CartWishlistContext';
 import { User, Mail, Bell, Shield, Check, Save } from 'lucide-react';
 
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { cdnAvatar } from '../../lib/cdnImage';
 
 export const StudentProfilePage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -45,7 +46,7 @@ export const StudentProfilePage: React.FC = () => {
 
           <div className="flex items-center gap-5">
             <img
-              src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
+              src={cdnAvatar(currentUser?.avatar, 96) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
               alt="Avatar"
               referrerPolicy="no-referrer"
               className="w-16 h-16 rounded-full object-cover border-2 border-[#E2E8F0]"

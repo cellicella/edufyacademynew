@@ -16,6 +16,7 @@ import { friendlyMessage } from '@/logic/apiErrors';
 import { isLive, offerCountdown } from '@/logic/engagement';
 import { itemTarget } from '@/logic/deepLinks';
 import { openTarget } from '@/lib/navigation';
+import { cdnImage } from '@/logic/cdnImage';
 
 const TYPE_LABEL: Record<string, string> = {
   special: 'Special offer', limited_time: 'Limited-time offer', festival: 'Festival offer',
@@ -52,7 +53,7 @@ export default function OfferScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: insets.bottom + 120 }}>
         <FadeIn>
           <LinearGradient colors={['#5E17EB', '#004AAD']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-            {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />}
+            {offer.imageUrl && <Image source={{ uri: cdnImage(offer.imageUrl, 1080) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />}
             <LinearGradient colors={['rgba(11,18,32,0)', 'rgba(11,18,32,0.8)']} style={StyleSheet.absoluteFill} />
             <View style={{ flex: 1, justifyContent: 'flex-end', padding: 18, gap: 8 }}>
               {!!offer.discountText && <View style={styles.tag}><Text style={styles.tagText}>{offer.discountText}</Text></View>}

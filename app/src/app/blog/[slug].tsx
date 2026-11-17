@@ -12,6 +12,7 @@ import { colors, fonts, radius, type } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { friendlyMessage } from '@/logic/apiErrors';
 import { config } from '@/lib/config';
+import { cdnImage } from '@/logic/cdnImage';
 
 export default function BlogPostScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -66,7 +67,7 @@ export default function BlogPostScreen() {
             </View>
           </View>
         </FadeIn>
-        {post.coverImageUrl && <Image source={{ uri: post.coverImageUrl }} style={styles.cover} contentFit="cover" transition={250} />}
+        {post.coverImageUrl && <Image source={{ uri: cdnImage(post.coverImageUrl, 1080) }} style={styles.cover} contentFit="cover" transition={250} />}
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
           <ArticleBody html={post.contentHtml} />
           {post.tags.length > 0 && (

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { isHttps } from '../../config/siteSettings';
+import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 
 interface WebBanner {
   id: string;
@@ -89,7 +90,7 @@ export const WebsiteBanners: React.FC = () => {
             <>
               <picture>
                 {isHttps(b.mobile_image_url) && <source media="(max-width: 639px)" srcSet={b.mobile_image_url!} />}
-                <img src={b.image_url!} alt="" className="absolute inset-0 w-full h-full object-cover" loading={n === 0 ? 'eager' : 'lazy'} />
+                <img src={cdnImage(b.image_url!, 1920)} srcSet={cdnSrcSet(b.image_url, [640, 960, 1280, 1920])} sizes="100vw" alt="" className="absolute inset-0 w-full h-full object-cover" loading={n === 0 ? 'eager' : 'lazy'} />
               </picture>
               <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-[#0B1220]/85 via-[#0B1220]/35 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:right-auto sm:max-w-[60%] p-6 sm:p-10 lg:p-14 flex flex-col justify-end sm:justify-center text-white text-left">

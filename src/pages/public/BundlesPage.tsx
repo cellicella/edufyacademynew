@@ -4,6 +4,7 @@ import { ArrowUpRight, Layers } from 'lucide-react';
 import { bundleService } from '../../services/api';
 import { Bundle } from '../../types';
 import { formatPrice } from '../../components/common/CourseCard';
+import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 
 export const BundlesPage: React.FC = () => {
   const [bundles, setBundles] = useState<Bundle[]>([]);
@@ -47,7 +48,7 @@ export const BundlesPage: React.FC = () => {
                 className="group bg-white rounded-[28px] border border-[#E2E8F0] p-2 hover:border-transparent hover:shadow-lg transition-all"
               >
                 <div className="relative aspect-[16/8] rounded-[22px] overflow-hidden bg-[#E8EFFB]">
-                  {b.thumbnail && <img src={b.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700" />}
+                  {b.thumbnail && <img src={cdnImage(b.thumbnail, 640)} srcSet={cdnSrcSet(b.thumbnail, [320, 480, 640, 960])} sizes="(min-width: 768px) 50vw, 100vw" alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700" />}
                   <span className="absolute top-4 left-4 h-8 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-white/95 text-[13px] font-semibold text-[#111827]">
                     <Layers className="w-4 h-4 text-[#5E17EB]" /> {b.courses.length} courses
                   </span>

@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
+import { cdnImage } from '../../lib/cdnImage';
 
 export const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
@@ -58,7 +59,7 @@ export const CategoriesPage: React.FC = () => {
               <div>
                 <div className="p-3 w-fit rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] group-hover:bg-[#EBF3FF] group-hover:border-blue-200 group-hover:scale-105 transition-all duration-300 mb-4">
                   {cat.imageUrl ? (
-                    <img src={cat.imageUrl} alt="" className="w-8 h-8 object-cover rounded-lg" loading="lazy" />
+                    <img src={cdnImage(cat.imageUrl, 64, { height: 64, crop: 'fill' })} alt="" className="w-8 h-8 object-cover rounded-lg" loading="lazy" />
                   ) : (
                     categoryIcons[cat.slug] || <FileCode2 className="w-8 h-8 text-[#004AAD]" />
                   )}

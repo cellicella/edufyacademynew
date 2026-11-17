@@ -10,10 +10,11 @@ import { discountPercent, formatDuration, formatPrice } from '@/utils/format';
 import { Badge, Button, ProgressBar } from './ui';
 import { PressableScale } from './Engagement';
 import { LearningItem } from '@/hooks/queries';
+import { cdnImage } from '@/logic/cdnImage';
 
 export const Thumb: React.FC<{ uri: string | null; style: any; radius?: number }> = ({ uri, style, radius: r = radius.lg }) =>
   uri ? (
-    <Image source={{ uri }} style={[style, { borderRadius: r, backgroundColor: colors.primarySoft }]} contentFit="cover" transition={200} recyclingKey={uri} />
+    <Image source={{ uri: cdnImage(uri, 720) }} style={[style, { borderRadius: r, backgroundColor: colors.primarySoft }]} contentFit="cover" transition={200} recyclingKey={uri} />
   ) : (
     <LinearGradient colors={gradients.brand} style={[style, { borderRadius: r, alignItems: 'center', justifyContent: 'center' }]}>
       <Ionicons name="school" size={28} color="rgba(255,255,255,0.9)" />

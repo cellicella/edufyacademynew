@@ -18,6 +18,7 @@ import { friendlyMessage } from '@/logic/apiErrors';
 import { InboxItem, categoryMeta, groupByDay } from '@/logic/engagement';
 import { notificationTarget, parseLink } from '@/logic/deepLinks';
 import { openTarget } from '@/lib/navigation';
+import { cdnImage } from '@/logic/cdnImage';
 
 type Filter = 'all' | 'unread' | 'activity';
 const TONE = {
@@ -184,7 +185,7 @@ const InboxRow: React.FC<{ item: InboxItem; onPress: () => void; onMenu: () => v
           {unread && <View style={styles.dot} />}
         </View>
         <Text style={type.body} numberOfLines={3}>{item.body}</Text>
-        {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="cover" transition={150} />}
+        {item.imageUrl && <Image source={{ uri: cdnImage(item.imageUrl, 720) }} style={styles.image} contentFit="cover" transition={150} />}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={[type.small, { color: fg, fontFamily: fonts.bodySemi }]}>{meta.label}</Text>
           <Text style={type.small}>· {timeAgo(item.createdAt)}</Text>

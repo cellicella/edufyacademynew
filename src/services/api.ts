@@ -410,7 +410,9 @@ export const courseService = {
    */
   async uploadMedia(
     file: File,
-    bucket: 'course-thumbnails' | 'course-videos' | 'course-materials'
+    bucket: 'course-thumbnails' | 'course-videos' | 'course-materials',
+    /** Where an image is used; picks its Cloudinary folder (images go to the Cloudinary CDN when configured). */
+    context?: 'course' | 'bundle' | 'blog' | 'category' | 'banner' | 'offer' | 'notification' | 'site'
   ): Promise<{ success: boolean; url: string; storageAssetPath: string; fileName: string; size: number }> {
     const token = await getAuthToken();
     if (!token) {
@@ -435,6 +437,7 @@ export const courseService = {
         fileName: file.name,
         fileType: file.type,
         bucket,
+        ...(context ? { context } : {}),
       }),
     });
 

@@ -16,6 +16,7 @@ import { activeUrls } from './server/domain';
 import { createManagementClient } from './server/supabaseManagement';
 import { registerAuthEmailHook } from './server/authHook';
 import { createCronHandler } from './server/cron';
+import { createImageService, ImageHttpError } from './server/images';
 import { renderIndexHtml, robotsTxt } from './server/settingsSchema';
 
 // .env.local holds public VITE_ values; .env holds server-only secrets. Neither is committed.
@@ -70,6 +71,15 @@ const razorpayEnv = {
 
 // Centralized settings (site_settings), encrypted credentials, payment gateway and email
 const settingsService = createSettingsService(supabaseAdmin && supabaseServiceKey ? supabaseAdmin : null);
+// Cloudinary image CDN (CLOUDINARY_URL; the API secret never leaves the server). Falls back to Supabase Storage when unset.
+const imageService = createImageService({
+  db: supabaseAdmin && supabaseServiceKey ? supabaseAdmin : null,
+  env: process.env,
+  supabaseUrl: supabaseUrl || '',
+  getAuthUserProfile: (req) => getAuthUserProfile(req),
+});
+if (!imageService.configured()) console.warn('[Server] Cloudinary is not configured (CLOUDINARY_URL): images are stored in Supabase Storage.');
+
 const credentialStore = createCredentialStore(supabaseAdmin && supabaseServiceKey ? supabaseAdmin : null, process.env.SETTINGS_ENCRYPTION_KEY);
 const paymentGateway = createPaymentGateway(credentialStore, razorpayEnv);
 // Transactional email: SMTP (or Resend/Brevo) from Admin → Settings → SMTP & Email (encrypted), with the
@@ -928,6 +938,18 @@ app.post('/api/upload', async (req: Request, res: Response) => {
     // Max size limit check (e.g. 50MB)
     if (buffer.length > 50 * 1024 * 1024) {
       return res.status(413).json({ error: 'File size exceeds 50MB limit.' });
+    }
+
+    // Images go to the Cloudinary CDN when it is configured (videos and course materials stay in Supabase Storage)
+    if (bucket === 'course-thumbnails' && imageService.configured()) {
+      try {
+        const up = await imageService.uploadBuffer(buffer, { kind: typeof req.body.context === 'string' ? req.body.context : 'other', source: 'upload', userId: auth.user.id });
+        return res.json({ success: true, url: up.url, storageAssetPath: up.publicId, bucket: 'cloudinary', provider: 'cloudinary', fileName, size: buffer.length, width: up.width, height: up.height });
+      } catch (e: any) {
+        const status = e instanceof ImageHttpError ? e.status : 500;
+        console.error('[Upload Error] Cloudinary:', e?.message || e);
+        return res.status(status).json({ error: status === 500 ? 'Failed to upload the image.' : e.message, details: e?.message });
+      }
     }
 
     // Generate sanitized, collision-free file path
@@ -2382,13 +2404,23 @@ app.get(
     push: async () => {
       await pushNotifications.tick();
     },
+    // Removes Cloudinary images that have not been used anywhere for 7 days (checked at most hourly)
+    images: async () => {
+      if (Date.now() - lastImageSweep < 60 * 60 * 1000) return 'skipped (runs hourly)';
+      lastImageSweep = Date.now();
+      return imageService.sweep();
+    },
   })
 );
+let lastImageSweep = 0;
 
 // ============================================================================
 // SETTINGS & CONFIGURATION (public settings, admin settings, credentials, media) — see server/settings.ts
 // ============================================================================
+imageService.registerRoutes(app);
+
 registerSettingsRoutes(app, {
+  images: imageService,
   db: supabaseAdmin && supabaseServiceKey ? supabaseAdmin : null,
   serviceRole: !!(supabaseUrl && supabaseServiceKey),
   getAuthUserProfile,

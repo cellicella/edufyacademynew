@@ -127,6 +127,12 @@ export const settingsAdmin = {
     update: (id: string, body: { fileBase64?: string; fileName?: string; altText?: string }) => call<{ item: MediaItem }>(`/admin/media/${id}`, { method: 'PUT', body }),
     remove: (id: string) => call<{ ok: boolean }>(`/admin/media/${id}`, { method: 'DELETE' }),
   },
+  /** Cloudinary CDN: status, migration of existing images (dry run first) and rollback. */
+  images: {
+    status: () => call<ImagesStatus>('/admin/images/status'),
+    migrate: (body: { dryRun: boolean; limit?: number }) => call<MigrationReport>('/admin/images/migrate', { method: 'POST', body }),
+    rollback: () => call<{ reverted: Record<string, number>; note: string }>('/admin/images/rollback', { method: 'POST', body: { confirm: 'ROLLBACK' } }),
+  },
   permissions: {
     list: () => call<{ sections: string[]; users: any[] }>('/admin/settings/permissions'),
     save: (userId: string, body: { isSuperAdmin: boolean; sections: string[] }) => call(`/admin/settings/permissions/${userId}`, { method: 'PUT', body }),
@@ -192,3 +198,26 @@ export async function prepareImage(file: File, assetType: string): Promise<{ bas
 }
 
 export const formatBytes = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
+
+export interface ImagesStatus { configured: boolean; cloudName: string | null; assets: Record<string, number>; lastRun: { kind: string; report: any; created_at: string } | null }
+
+export interface MigrationReport {
+  dryRun: boolean;
+  cloudinaryConfigured: boolean;
+  cloudName: string | null;
+  distinctImages: number;
+  alreadyInCloudinary: number;
+  toUpload: number;
+  bySource: { supabase: number; external: number };
+  references: Record<string, number>;
+  inlineHtmlImages: number;
+  settingsImages: number;
+  skipped: Record<string, number>;
+  items?: { url: string; source: string; folder: string; references: number; status: string }[];
+  uploadedNow?: number;
+  failedNow?: number;
+  uploaded?: string[];
+  failures?: { url: string; error: string }[];
+  referencesUpdated?: Record<string, number>;
+  done?: boolean;
+}

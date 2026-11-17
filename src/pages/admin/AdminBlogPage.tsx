@@ -126,7 +126,7 @@ export const AdminBlogPage: React.FC = () => {
     if (!file.type.startsWith('image/')) return showToast('Choose an image file', 'warning');
     setUploading(field);
     try {
-      const r = await courseService.uploadMedia(file, 'course-thumbnails');
+      const r = await courseService.uploadMedia(file, 'course-thumbnails', 'blog');
       setDraft({ ...draft, [field]: r.url });
     } catch (e: any) {
       showToast(e.message || 'Upload failed — paste an image link instead.', 'error');

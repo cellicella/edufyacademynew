@@ -10,6 +10,7 @@ import { PaymentPanel, WhatsAppPanel } from './panelsSecure';
 import { AuthMethodsPanel, DomainPanel, EmailTemplatesPanel, GoogleOAuthPanel, SmtpPanel } from './panelsEmailAuth';
 import { Card, Note, PanelHeader, fmtWhen } from './settingsKit';
 import { MediaLibrary } from '../../../components/admin/MediaLibrary';
+import { CloudinaryPanel } from './CloudinaryPanel';
 import { AdminBannersPage } from '../AdminBannersPage';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
 
@@ -79,7 +80,8 @@ export const AdminSettingsPage: React.FC = () => {
       case 'app-banners': return <AdminBannersPage placement="app" />;
       case 'media': return (
         <div>
-          <PanelHeader title="Images & media" description="All site images in one place. Images are stored in Supabase Storage; replacing an image updates it everywhere it is used, and images in use cannot be deleted." />
+          <PanelHeader title="Images & media" description="All site images in one place. New images are stored in the Cloudinary CDN (Supabase Storage until Cloudinary is configured); replacing an image updates it everywhere it is used, and images in use cannot be deleted." />
+          <div className="mb-6"><CloudinaryPanel /></div>
           <MediaLibrary mode="manage" />
         </div>
       );

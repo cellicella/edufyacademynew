@@ -11,6 +11,7 @@ import {
   Lock,
   Sparkles,
 } from 'lucide-react';
+import { cdnImage } from '../../lib/cdnImage';
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -107,7 +108,7 @@ export const CartDrawer: React.FC = () => {
                     className="flex gap-3 py-3 items-start group"
                   >
                     <img
-                      src={item.thumbnail}
+                      src={cdnImage(item.thumbnail, 160)}
                       alt={item.title}
                       referrerPolicy="no-referrer"
                       className="w-20 h-14 object-cover rounded-lg bg-slate-900 border border-[#E2E8F0] shrink-0"

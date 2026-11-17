@@ -5,7 +5,7 @@
   Run it with PUSH-TO-GITHUB.cmd in the project folder (double-click), or:
     powershell -ExecutionPolicy Bypass -File production\github\push-to-github.ps1 -Message "What changed"
 
-  Website -> https://github.com/cellicella/edufyacademy-website  (private; this whole project folder)
+  Website -> https://github.com/cellicella/edufyacademynew       (private; this whole project folder)
   API     -> https://github.com/cellicella/edufyacademy-api      (private; generated from server.ts, server\ and the server tests)
   Both repositories are created automatically (private) on the first run if they do not exist yet.
 
@@ -15,7 +15,7 @@
 #>
 param(
   [string]$Message = '',
-  [string]$WebsiteRepo = 'https://github.com/cellicella/edufyacademy-website.git',
+  [string]$WebsiteRepo = 'https://github.com/cellicella/edufyacademynew.git',
   [string]$ApiRepo = 'https://github.com/cellicella/edufyacademy-api.git',
   [string]$Branch = 'main',
   [switch]$WebsiteOnly,
@@ -200,7 +200,7 @@ if (-not $WebsiteOnly) {
   Copy-Item -LiteralPath (Join-Path $Root 'server.ts') -Destination $Work
   Copy-Item -LiteralPath (Join-Path $Root 'server') -Destination $Work -Recurse
   New-Item -ItemType Directory -Path (Join-Path $Work 'tests') | Out-Null
-  foreach ($t in @('backend', 'cron', 'emailSystem', 'pushLogic', 'settings', 'smtp')) {
+  foreach ($t in @('backend', 'cron', 'emailSystem', 'pushLogic', 'settings', 'smtp', 'cloudinary')) {
     Copy-Item -LiteralPath (Join-Path $Root ('tests\' + $t + '.test.ts')) -Destination (Join-Path $Work 'tests')
   }
   Get-ChildItem -LiteralPath (Join-Path $Root 'production\api-repo') -Force | Copy-Item -Destination $Work -Recurse

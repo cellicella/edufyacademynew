@@ -4,6 +4,7 @@ import { Course } from '../../types';
 import { Star, Heart, BookOpen, Check, ArrowUpRight, Clock, PlayCircle } from 'lucide-react';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { formatDuration, calculateDiscountPercent } from '../../utils/courseUtils';
+import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
 
 interface CourseCardProps {
   course: Course;
@@ -49,7 +50,9 @@ const Thumbnail: React.FC<{ course: Course; className?: string }> = ({ course, c
   }
   return (
     <img
-      src={course.thumbnail}
+      src={cdnImage(course.thumbnail, 640)}
+      srcSet={cdnSrcSet(course.thumbnail, [320, 480, 640, 960])}
+      sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 100vw"
       alt=""
       loading="lazy"
       referrerPolicy="no-referrer"
@@ -102,7 +105,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   const instructorRow = (
     <div className="flex items-center gap-2.5 min-w-0">
       <img
-        src={course.instructor.avatar}
+        src={cdnAvatar(course.instructor.avatar, 32)}
         alt=""
         referrerPolicy="no-referrer"
         className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm shrink-0"

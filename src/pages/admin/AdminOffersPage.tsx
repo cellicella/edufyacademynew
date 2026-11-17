@@ -134,7 +134,7 @@ export const AdminOffersPage: React.FC = () => {
     if (!file.type.startsWith('image/')) return showToast('Choose an image file', 'warning');
     setUploading(true);
     try {
-      const r = await courseService.uploadMedia(file, 'course-thumbnails');
+      const r = await courseService.uploadMedia(file, 'course-thumbnails', 'offer');
       setForm({ ...form, image_url: r.url });
     } catch (e: any) {
       showToast(e.message || 'Upload failed', 'error');

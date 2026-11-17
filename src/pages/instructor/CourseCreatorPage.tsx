@@ -260,7 +260,7 @@ export const CourseCreatorPage: React.FC = () => {
 
     try {
       setUploading(uploadKey);
-      const res = await courseService.uploadMedia(file, bucket);
+      const res = await courseService.uploadMedia(file, bucket, bucket === 'course-thumbnails' ? 'course' : undefined);
       onSuccess(res.url, res.storageAssetPath);
       showToast(`File "${file.name}" uploaded to ${bucket}!`, 'success');
     } catch (err: any) {

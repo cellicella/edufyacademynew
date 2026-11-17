@@ -38,13 +38,13 @@ function EditProfileForm() {
 
   const pick = async () => {
     setError(null);
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true });
     if (res.canceled || !res.assets?.[0] || !session) return;
     const asset = res.assets[0];
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Please choose an image smaller than 5 MB.');
     setUploading(true);
     try {
-      const url = await uploadAvatar(session.user.id, asset.uri, asset.mimeType || 'image/jpeg');
+      const url = await uploadAvatar(session.user.id, asset.uri, asset.mimeType || 'image/jpeg', asset.base64);
       setAvatar(url);
     } catch (e: any) {
       setError(friendlyMessage(e, 'Could not upload the picture.'));

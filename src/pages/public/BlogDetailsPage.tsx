@@ -4,6 +4,7 @@ import { ArrowLeft, Share2, Tag, Check } from 'lucide-react';
 import { BlogPostFull, blogPublicService } from '../../services/content';
 import { useDocumentMeta } from '../../lib/seo';
 import { BlogCard, PostMeta } from './BlogListingPage';
+import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 
 export const BlogDetailsPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -89,7 +90,7 @@ export const BlogDetailsPage: React.FC = () => {
 
       {post.coverImageUrl && (
         <div className="max-w-5xl mx-auto px-5 sm:px-8 mt-8">
-          <img src={post.coverImageUrl} alt="" className="w-full aspect-[16/8] object-cover rounded-[28px]" />
+          <img src={cdnImage(post.coverImageUrl, 1280)} srcSet={cdnSrcSet(post.coverImageUrl, [640, 960, 1280, 1600])} sizes="(min-width: 1024px) 1000px, 100vw" alt="" className="w-full aspect-[16/8] object-cover rounded-[28px]" />
         </div>
       )}
 

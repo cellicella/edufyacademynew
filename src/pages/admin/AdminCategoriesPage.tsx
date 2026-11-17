@@ -134,7 +134,7 @@ export const AdminCategoriesPage: React.FC = () => {
     if (!file.type.startsWith('image/')) return showToast('Choose an image file', 'warning');
     setUploading(true);
     try {
-      const r = await courseService.uploadMedia(file, 'course-thumbnails');
+      const r = await courseService.uploadMedia(file, 'course-thumbnails', 'category');
       setForm({ ...form, imageUrl: r.url });
     } catch (e: any) {
       showToast(e.message || 'Upload failed (the Edufy server is needed for uploads — you can paste an image link instead).', 'error');

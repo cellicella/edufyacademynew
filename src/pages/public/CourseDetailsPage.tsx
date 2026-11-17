@@ -25,6 +25,7 @@ import {
   Play,
   X,
 } from 'lucide-react';
+import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
 
 export const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -170,7 +171,7 @@ export const CourseDetailsPage: React.FC = () => {
 
               <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-5">
                 <div className="flex items-center gap-3">
-                  <img src={course.instructor.avatar} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
+                  <img src={cdnAvatar(course.instructor.avatar, 48)} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
                   <div className="leading-tight">
                     <div className="text-[13px] text-[#64748B]">Instructor</div>
                     <div className="text-[17px] font-semibold text-[#111827]">{course.instructor.name}</div>
@@ -200,7 +201,7 @@ export const CourseDetailsPage: React.FC = () => {
             <div className="lg:col-span-5">
               <div className="ed-frame">
                 <div className="ed-frame-inner relative aspect-[4/3] overflow-hidden bg-[#E8EFFB]">
-                  <img src={course.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
@@ -437,7 +438,7 @@ export const CourseDetailsPage: React.FC = () => {
                   aria-label={`Play preview of ${course.title}`}
                   className="group aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900 relative block"
                 >
-                  <img src={course.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   <span className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-2">
                     <span className="w-14 h-14 rounded-full bg-white text-[#004AAD] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
                       <Play className="w-6 h-6 ml-0.5 fill-current" />
@@ -447,7 +448,7 @@ export const CourseDetailsPage: React.FC = () => {
                 </button>
               ) : (
                 <div className="aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900">
-                  <img src={course.thumbnail} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </div>
               )}
 

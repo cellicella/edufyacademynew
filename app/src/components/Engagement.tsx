@@ -12,6 +12,7 @@ import { colors, fonts, gradients, radius, shadow, type } from '@/theme';
 import { Banner, Offer, offerCountdown } from '@/logic/engagement';
 import { itemTarget } from '@/logic/deepLinks';
 import { openTarget } from '@/lib/navigation';
+import { cdnImage } from '@/logic/cdnImage';
 
 /* ------------------------------------------------------------------ PressableScale */
 /** Pressable with a soft spring scale on press (native driver, cheap). */
@@ -204,7 +205,7 @@ const Slide: React.FC<{ item: SlideItem; height: number; onTouch: (v: boolean) =
     >
       <LinearGradient colors={gradients.brandDeep} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       {item.imageUrl && !failed && (
-        <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} onError={() => setFailed(true)} recyclingKey={item.imageUrl} />
+        <Image source={{ uri: cdnImage(item.imageUrl, 1080) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} onError={() => setFailed(true)} recyclingKey={item.imageUrl} />
       )}
       {(!item.imageUrl || failed) && (
         <View style={styles.slideArt} pointerEvents="none">
@@ -238,7 +239,7 @@ export const OfferCard: React.FC<{ offer: Offer; width?: number; onPress: () => 
     <PressableScale onPress={onPress} style={[styles.offer, width ? { width } : null]} accessibilityRole="button" accessibilityLabel={`${offer.title}. ${offer.discountText || ''}. ${countdown || ''}`}>
       <LinearGradient colors={['#5E17EB', '#5271FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.offerArt}>
         {offer.imageUrl ? (
-          <Image source={{ uri: offer.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+          <Image source={{ uri: cdnImage(offer.imageUrl, 720) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
         ) : (
           <Ionicons name="pricetag" size={30} color="rgba(255,255,255,0.9)" />
         )}

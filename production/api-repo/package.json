@@ -12,7 +12,7 @@
     "build": "esbuild server.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=server-dist/server.mjs",
     "start": "node server-dist/server.mjs",
     "dev": "tsx server.ts",
-    "test": "tsx --test tests/backend.test.ts tests/cron.test.ts tests/emailSystem.test.ts tests/pushLogic.test.ts tests/settings.test.ts tests/smtp.test.ts"
+    "test": "tsx --test tests/backend.test.ts tests/cron.test.ts tests/emailSystem.test.ts tests/pushLogic.test.ts tests/settings.test.ts tests/smtp.test.ts tests/cloudinary.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

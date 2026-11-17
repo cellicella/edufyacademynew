@@ -9,6 +9,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { colors, fonts, gradients, radius, type } from '@/theme';
 import { initials } from '@/utils/format';
+import { cdnAvatar } from '@/logic/cdnImage';
 
 /* ------------------------------------------------------------------ Button */
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -181,7 +182,7 @@ export const Badge: React.FC<{ label: string; tone?: 'primary' | 'accent' | 'suc
 
 export const Avatar: React.FC<{ uri?: string | null; name?: string | null; size?: number }> = ({ uri, name, size = 44 }) =>
   uri ? (
-    <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primarySoft }} contentFit="cover" transition={150} />
+    <Image source={{ uri: cdnAvatar(uri, Math.ceil(size * 1.5)) }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primarySoft }} contentFit="cover" transition={150} />
   ) : (
     <LinearGradient colors={gradients.brand} style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: fonts.displayBold, color: colors.white, fontSize: size * 0.38 }}>{initials(name)}</Text>

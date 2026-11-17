@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
 import { isStoredPhone } from '@/logic/phone';
+import { api, ApiError } from '@/lib/api';
 
 export function mapProfile(row: any, email: string): Profile {
   return {
@@ -43,8 +44,26 @@ export async function updateProfile(userId: string, fields: { fullName?: string;
   if (fields.fullName) await supabase.auth.updateUser({ data: { full_name: fields.fullName.trim() } });
 }
 
+/**
+ * Profile picture upload. Preferred: the Edufy API stores it in the Cloudinary CDN (optimised delivery,
+ * the previous picture is deleted, the profile is updated on the server). If the server has no
+ * Cloudinary configuration (503) or is unreachable, the picture goes to the "avatars" bucket as before.
+ */
+export async function uploadAvatar(userId: string, uri: string, mimeType = 'image/jpeg', base64?: string | null): Promise<string> {
+  if (base64) {
+    try {
+      const r = await api<{ url: string }>('/me/avatar', { body: { fileBase64: `data:${mimeType};base64,${base64}` }, timeoutMs: 45000 });
+      if (r?.url) return r.url;
+    } catch (e: any) {
+      // Fall back only when the CDN is unavailable; real errors (bad image, too large) are shown
+      if (!(e instanceof ApiError) || ![0, 404, 408, 502, 503, 504].includes(e.status)) throw e;
+    }
+  }
+  return uploadAvatarToStorage(userId, uri, mimeType);
+}
+
 /** Uploads to the existing public "avatars" bucket (policy: users write only their own folder). */
-export async function uploadAvatar(userId: string, uri: string, mimeType = 'image/jpeg'): Promise<string> {
+async function uploadAvatarToStorage(userId: string, uri: string, mimeType = 'image/jpeg'): Promise<string> {
   const ext = mimeType.includes('png') ? 'png' : 'jpg';
   const path = `${userId}/avatar-${Date.now()}.${ext}`;
   const bytes = await (await fetch(uri)).arrayBuffer();

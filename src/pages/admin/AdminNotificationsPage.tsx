@@ -313,7 +313,7 @@ const Composer: React.FC<{
     if (file.size > 5 * 1024 * 1024) return showToast('Images must be under 5 MB', 'warning');
     setUploading(true);
     try {
-      const r = await courseService.uploadMedia(file, 'course-thumbnails');
+      const r = await courseService.uploadMedia(file, 'course-thumbnails', 'notification');
       set('imageUrl', r.url);
     } catch (e: any) {
       showToast(e.message || 'Upload failed', 'error');

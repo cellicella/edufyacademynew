@@ -30,6 +30,7 @@ import { activeUrls, requiredRedirects, type DomainSettings } from './domain';
 import { mergeAllowList, parseAllowList, type ManagementClient } from './supabaseManagement';
 import { generateHookSecret, isHookSecret } from './authHook';
 import { ASSET_TYPES, AssetType, safeFileStem, validateUpload } from './mediaLogic';
+import type { ImageService } from './images';
 
 export const PERMISSION_SECTIONS = ['general', 'branding', 'banners', 'media', 'contact', 'social', 'payment', 'whatsapp', 'email', 'seo', 'app', 'notifications', 'maintenance', 'audit'] as const;
 export type PermissionSection = (typeof PERMISSION_SECTIONS)[number];
@@ -115,6 +116,8 @@ export type SettingsService = ReturnType<typeof createSettingsService>;
 
 // ------------------------------------------------------------------ routes
 interface Deps {
+  /** Cloudinary image service; when configured, media library images are stored there. */
+  images?: ImageService;
   db: SupabaseClient | null;
   serviceRole: boolean;
   getAuthUserProfile: (req: Request) => Promise<{ user: any; profile: any } | null>;
@@ -131,6 +134,12 @@ interface Deps {
 interface Access { superAdmin: boolean; sections: Set<string> }
 
 const MEDIA_BUCKET = 'site-assets';
+
+/** Cloudinary folder for each media library type. */
+const KIND_OF_ASSET: Record<AssetType, string> = {
+  website_banner: 'banner', app_banner: 'banner', course_thumbnail: 'course', bundle_image: 'bundle', blog_image: 'blog',
+  category_image: 'category', promo: 'offer', logo: 'site', seo: 'site', other: 'other',
+};
 
 export function registerSettingsRoutes(app: Express, deps: Deps) {
   const { db, settings, credentials } = deps;
@@ -816,6 +825,33 @@ export function registerSettingsRoutes(app: Express, deps: Deps) {
     refCache = null;
   }
 
+  // Lets the image migration repoint URLs stored in site settings (same validation as a normal save)
+  deps.images?.setSettingsReplacer(async (from, to) => {
+    const rows = await settings.rows(true);
+    const needle = JSON.stringify(from).slice(1, -1);
+    let changed = 0;
+    for (const [section, r] of Object.entries(rows)) {
+      const text = JSON.stringify(r.value);
+      if (!text.includes(needle)) continue;
+      const next = JSON.parse(text.split(needle).join(JSON.stringify(to).slice(1, -1)));
+      const v = validateSection(section, next);
+      if (v.ok) {
+        await settings.save(section as SectionId, v.value, null);
+        changed++;
+      }
+    }
+    refCache = null;
+    return changed;
+  });
+
+  const cloudinaryOn = () => !!deps.images?.configured();
+
+  /** Removes the stored file of a media library item (Cloudinary or Supabase Storage). */
+  async function removeStoredFile(m: any) {
+    if (m.provider === 'cloudinary' && m.public_id) await deps.images!.destroyPublicId(m.public_id).catch((e) => console.error('[Media] Cloudinary delete failed:', e?.message || e));
+    else if (m.path && m.bucket !== 'cloudinary') await db!.storage.from(m.bucket || MEDIA_BUCKET).remove([m.path]);
+  }
+
   function decodeUpload(b: any) {
     const raw = typeof b?.fileBase64 === 'string' ? b.fileBase64.replace(/^data:[^;]+;base64,/, '') : '';
     if (!raw) throw new SettingsHttpError(400, 'No file received.');
@@ -854,18 +890,27 @@ export function registerSettingsRoutes(app: Express, deps: Deps) {
       await audit({ section: 'media', action: 'media_upload', actor: user, status: 'failure', error: v.error });
       throw new SettingsHttpError(400, v.error);
     }
-    const now = new Date();
-    const path = `${assetType}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${crypto.randomUUID().slice(0, 8)}-${safeFileStem(req.body?.fileName)}.${v.info.ext}`;
-    const { error: upErr } = await db!.storage.from(MEDIA_BUCKET).upload(path, buf, { contentType: v.info.mime, cacheControl: '31536000', upsert: false });
-    if (upErr) throw new SettingsHttpError(500, `Storage upload failed: ${upErr.message}. Make sure the "${MEDIA_BUCKET}" bucket exists (run the settings migration).`);
-    const url = db!.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+    let stored: { bucket: string; path: string; url: string; provider: string; public_id: string | null };
+    if (cloudinaryOn()) {
+      const up = await deps.images!.uploadBuffer(buf, { kind: KIND_OF_ASSET[assetType], source: 'media_library', userId: user.id }).catch((e: any) => {
+        throw new SettingsHttpError(e?.status || 500, `Cloudinary upload failed: ${e?.message || e}`);
+      });
+      stored = { bucket: 'cloudinary', path: up.publicId, url: up.url, provider: 'cloudinary', public_id: up.publicId };
+    } else {
+      const now = new Date();
+      const path = `${assetType}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${crypto.randomUUID().slice(0, 8)}-${safeFileStem(req.body?.fileName)}.${v.info.ext}`;
+      const { error: upErr } = await db!.storage.from(MEDIA_BUCKET).upload(path, buf, { contentType: v.info.mime, cacheControl: '31536000', upsert: false });
+      if (upErr) throw new SettingsHttpError(500, `Storage upload failed: ${upErr.message}. Make sure the "${MEDIA_BUCKET}" bucket exists (run the settings migration).`);
+      stored = { bucket: MEDIA_BUCKET, path, url: db!.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl, provider: 'supabase', public_id: null };
+    }
+    const url = stored.url;
     const row = {
-      bucket: MEDIA_BUCKET, path, url, asset_type: assetType, file_name: cleanString(req.body?.fileName, 200) || null, mime_type: v.info.mime,
+      ...stored, asset_type: assetType, file_name: cleanString(req.body?.fileName, 200) || null, mime_type: v.info.mime,
       size_bytes: buf.length, width: v.info.width, height: v.info.height, alt_text: cleanString(req.body?.altText, 200) || null, uploaded_by: user.id,
     };
     const { data, error } = await db!.from('media_assets').insert(row).select('*').single();
     if (error) {
-      await db!.storage.from(MEDIA_BUCKET).remove([path]);
+      await removeStoredFile(row);
       throw new SettingsHttpError(400, error.message);
     }
     refCache = null;
@@ -884,18 +929,28 @@ export function registerSettingsRoutes(app: Express, deps: Deps) {
       const v = validateUpload(buf, m.asset_type);
       if (!v.ok) throw new SettingsHttpError(400, v.error);
       // New object (fresh URL, no stale CDN cache), then repoint every reference and remove the old file
-      const path = m.path.replace(/[^/]+$/, `${crypto.randomUUID().slice(0, 8)}-${safeFileStem(req.body?.fileName || m.file_name)}.${v.info.ext}`);
-      const { error: upErr } = await db!.storage.from(MEDIA_BUCKET).upload(path, buf, { contentType: v.info.mime, cacheControl: '31536000', upsert: false });
-      if (upErr) throw new SettingsHttpError(500, `Storage upload failed: ${upErr.message}`);
-      const url = db!.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
-      Object.assign(patch, { path, url, mime_type: v.info.mime, size_bytes: buf.length, width: v.info.width, height: v.info.height, file_name: cleanString(req.body?.fileName, 200) || m.file_name });
+      let stored: { bucket: string; path: string; url: string; provider: string; public_id: string | null };
+      if (cloudinaryOn()) {
+        const up = await deps.images!.uploadBuffer(buf, { kind: KIND_OF_ASSET[m.asset_type as AssetType] || 'other', source: 'media_library', userId: user.id }).catch((e: any) => {
+          throw new SettingsHttpError(e?.status || 500, `Cloudinary upload failed: ${e?.message || e}`);
+        });
+        stored = { bucket: 'cloudinary', path: up.publicId, url: up.url, provider: 'cloudinary', public_id: up.publicId };
+      } else {
+        const base = m.bucket === 'cloudinary' ? `${m.asset_type}/replaced/x` : m.path;
+        const path = base.replace(/[^/]+$/, `${crypto.randomUUID().slice(0, 8)}-${safeFileStem(req.body?.fileName || m.file_name)}.${v.info.ext}`);
+        const { error: upErr } = await db!.storage.from(MEDIA_BUCKET).upload(path, buf, { contentType: v.info.mime, cacheControl: '31536000', upsert: false });
+        if (upErr) throw new SettingsHttpError(500, `Storage upload failed: ${upErr.message}`);
+        stored = { bucket: MEDIA_BUCKET, path, url: db!.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl, provider: 'supabase', public_id: null };
+      }
+      const url = stored.url;
+      Object.assign(patch, { ...stored, mime_type: v.info.mime, size_bytes: buf.length, width: v.info.width, height: v.info.height, file_name: cleanString(req.body?.fileName, 200) || m.file_name });
       const { error: e2 } = await db!.from('media_assets').update(patch).eq('id', m.id);
       if (e2) {
-        await db!.storage.from(MEDIA_BUCKET).remove([path]);
+        await removeStoredFile(stored);
         throw new SettingsHttpError(400, e2.message);
       }
       await replaceReferences(m.url, url, user);
-      await db!.storage.from(MEDIA_BUCKET).remove([m.path]);
+      await removeStoredFile(m);
       await audit({ section: 'media', action: 'media_replace', changes: { file: m.file_name, from: m.url, to: url }, actor: user });
     } else {
       await db!.from('media_assets').update(patch).eq('id', m.id);
@@ -913,7 +968,7 @@ export function registerSettingsRoutes(app: Express, deps: Deps) {
       await audit({ section: 'media', action: 'media_delete', actor: user, status: 'failure', error: `In use: ${usages.slice(0, 3).join(', ')}` });
       throw new SettingsHttpError(409, 'This image is in use and cannot be deleted. Replace or remove it where it is used first.', { usages });
     }
-    await db!.storage.from(MEDIA_BUCKET).remove([m.path]);
+    await removeStoredFile(m);
     await db!.from('media_assets').delete().eq('id', m.id);
     refCache = null;
     await audit({ section: 'media', action: 'media_delete', changes: { file: m.file_name, url: m.url }, actor: user });

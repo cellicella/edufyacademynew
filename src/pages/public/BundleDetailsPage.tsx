@@ -7,6 +7,7 @@ import { useCartWishlist } from '../../context/CartWishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../components/common/CourseCard';
 import { formatDuration } from '../../utils/courseUtils';
+import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 
 export const BundleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -63,7 +64,7 @@ export const BundleDetailsPage: React.FC = () => {
           </div>
           <div className="lg:col-span-5">
             <div className="bg-white rounded-[28px] shadow-xl p-6 sm:p-8">
-              {bundle.thumbnail && <img src={bundle.thumbnail} alt="" className="w-full aspect-[16/9] object-cover rounded-[18px] mb-6" />}
+              {bundle.thumbnail && <img src={cdnImage(bundle.thumbnail, 1280)} srcSet={cdnSrcSet(bundle.thumbnail, [640, 960, 1280])} sizes="(min-width: 1024px) 800px, 100vw" alt="" className="w-full aspect-[16/9] object-cover rounded-[18px] mb-6" />}
               <div className="flex items-baseline gap-3">
                 <span className="font-display text-[36px] font-extrabold text-[#111827]">{formatPrice(bundle.price)}</span>
                 {saving > 0 && <span className="text-[18px] text-[#94A3B8] line-through">₹{bundle.coursesValue.toLocaleString('en-IN')}</span>}
@@ -96,7 +97,7 @@ export const BundleDetailsPage: React.FC = () => {
               <li key={c.id}>
                 <Link to={`/courses/${c.id}`} className="group grid grid-cols-[auto_120px_1fr] gap-5 items-center p-3 bg-white rounded-[22px] border border-[#E2E8F0] hover:shadow-md hover:border-transparent transition">
                   <span className="font-display text-[15px] font-bold text-[#94A3B8] w-7 text-center">{String(i + 1).padStart(2, '0')}</span>
-                  <img src={c.thumbnail} alt="" className="w-[120px] aspect-[4/3] object-cover rounded-[14px]" />
+                  <img src={cdnImage(c.thumbnail, 240)} alt="" className="w-[120px] aspect-[4/3] object-cover rounded-[14px]" />
                   <div className="min-w-0 pr-2">
                     <h3 className="font-display text-[19px] font-bold text-[#111827] group-hover:text-[#004AAD] line-clamp-2">{c.title}</h3>
                     <div className="mt-1 text-[15px] text-[#64748B]">{c.instructor.name} · {c.level} · {formatDuration(c.durationHours)}</div>

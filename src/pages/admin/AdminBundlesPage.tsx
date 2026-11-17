@@ -89,7 +89,7 @@ export const AdminBundlesPage: React.FC = () => {
     if (!file || !form) return;
     setUploading(true);
     try {
-      const res = await courseService.uploadMedia(file, 'course-thumbnails');
+      const res = await courseService.uploadMedia(file, 'course-thumbnails', 'bundle');
       setForm({ ...form, thumbnail: res.url });
     } catch (e: any) {
       showToast(e.message || 'Upload failed', 'error');

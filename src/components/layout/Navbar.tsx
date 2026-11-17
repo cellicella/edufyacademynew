@@ -17,6 +17,7 @@ import {
   ArrowUpRight,
   CornerDownLeft,
 } from 'lucide-react';
+import { cdnAvatar } from '../../lib/cdnImage';
 
 const navLinks = [
   { label: 'Courses', href: '/courses' },
@@ -180,7 +181,7 @@ export const Navbar: React.FC = () => {
                 aria-expanded={accountOpen}
                 aria-label="Account menu"
               >
-                <img src={currentUser.avatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover" />
+                <img src={cdnAvatar(currentUser.avatar, 36)} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover" />
                 <span className="hidden sm:block text-[15px] font-semibold text-[#111827] max-w-[110px] truncate">
                   {currentUser.name.split(' ')[0]}
                 </span>

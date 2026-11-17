@@ -20,6 +20,7 @@ import {
   PlayCircle,
   GraduationCap,
 } from 'lucide-react';
+import { cdnAvatar, cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 
 /* Authentic educational photography (Unsplash) */
 const PHOTOS = {
@@ -399,7 +400,7 @@ export const HomePage: React.FC = () => {
                   <motion.li key={course.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08, duration: 0.5 }} className="relative">
                     <Link to={`/courses/${course.id}`} className="group block">
                       <div className="aspect-[16/10] rounded-[18px] overflow-hidden bg-[#E8EFFB] mb-4">
-                        <SafeImage src={course.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700" />
+                        <SafeImage src={cdnImage(course.thumbnail, 640)} srcSet={cdnSrcSet(course.thumbnail, [320, 480, 640, 960])} sizes="(min-width: 1024px) 33vw, 100vw" alt="" className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700" />
                       </div>
                       <div className="text-[14px] font-semibold text-[#5E17EB]">{course.level}</div>
                       <h3 className="mt-1 font-display text-[20px] font-bold leading-snug text-[#111827] group-hover:text-[#004AAD] transition-colors line-clamp-2">
@@ -444,7 +445,7 @@ export const HomePage: React.FC = () => {
             {/* Feature */}
             <motion.div {...fadeUp} className="lg:col-span-7">
               <Link to={`/courses/${editorsPicks[0].id}`} className="group relative block h-full min-h-[460px] rounded-[32px] overflow-hidden bg-[#111827] shadow-lg">
-                <SafeImage src={editorsPicks[0].thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-[1.03] transition-transform duration-1000" />
+                <SafeImage src={cdnImage(editorsPicks[0].thumbnail, 1280)} srcSet={cdnSrcSet(editorsPicks[0].thumbnail, [640, 960, 1280])} sizes="(min-width: 1024px) 50vw, 100vw" alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-[1.03] transition-transform duration-1000" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-[#0B1220]/55 to-transparent" />
                 <div className="relative h-full flex flex-col justify-end p-7 sm:p-10 text-white">
                   <span className="self-start h-8 px-3.5 inline-flex items-center rounded-full bg-white/15 backdrop-blur text-[13px] font-semibold">
@@ -458,7 +459,7 @@ export const HomePage: React.FC = () => {
                   )}
                   <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
                     <div className="flex items-center gap-2.5">
-                      <img src={editorsPicks[0].instructor.avatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover ring-2 ring-white/40" />
+                      <img src={cdnAvatar(editorsPicks[0].instructor.avatar, 36)} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover ring-2 ring-white/40" />
                       <span className="text-[16px] font-semibold">{editorsPicks[0].instructor.name}</span>
                     </div>
                     <CourseRating course={editorsPicks[0]} tone="dark" />
@@ -477,7 +478,7 @@ export const HomePage: React.FC = () => {
                     className="group grid grid-cols-[120px_1fr] sm:grid-cols-[148px_1fr] gap-5 p-3 bg-white rounded-[24px] border border-[#E2E8F0] hover:border-transparent hover:shadow-lg transition-all"
                   >
                     <div className="aspect-square rounded-[18px] overflow-hidden bg-[#E8EFFB]">
-                      <SafeImage src={course.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-700" />
+                      <SafeImage src={cdnImage(course.thumbnail, 480)} srcSet={cdnSrcSet(course.thumbnail, [320, 480, 640])} sizes="(min-width: 1024px) 25vw, 50vw" alt="" className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-700" />
                     </div>
                     <div className="py-1 pr-2 flex flex-col min-w-0">
                       <span className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#5E17EB] truncate">{course.category}</span>
@@ -614,7 +615,7 @@ export const HomePage: React.FC = () => {
               <motion.div {...fadeUp} className="lg:col-span-7">
                 <Link to={`/instructors/${spotlightInstructors[0].id}`} className="group grid grid-cols-1 sm:grid-cols-[240px_1fr] gap-8 p-3 rounded-[32px] bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-colors">
                   <div className="aspect-[4/5] sm:aspect-auto sm:h-full min-h-[280px] rounded-[24px] overflow-hidden bg-white/5">
-                    <SafeImage src={spotlightInstructors[0].avatar} alt={spotlightInstructors[0].name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                    <SafeImage src={cdnImage(spotlightInstructors[0].avatar, 640)} alt={spotlightInstructors[0].name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   </div>
                   <div className="py-4 pr-4 flex flex-col">
                     <Quote className="w-9 h-9 text-[#5271FF]" />
@@ -645,7 +646,7 @@ export const HomePage: React.FC = () => {
                   {spotlightInstructors.slice(1).map((inst) => (
                     <li key={inst.id}>
                       <Link to={`/instructors/${inst.id}`} className="group flex items-center gap-5 py-5 px-2">
-                        <SafeImage src={inst.avatar} alt="" referrerPolicy="no-referrer" className="w-16 h-16 rounded-2xl object-cover bg-white/10" />
+                        <SafeImage src={cdnAvatar(inst.avatar, 64)} alt="" referrerPolicy="no-referrer" className="w-16 h-16 rounded-2xl object-cover bg-white/10" />
                         <div className="flex-1 min-w-0">
                           <div className="font-display text-[19px] font-bold truncate group-hover:text-[#A5B8FF] transition-colors">{inst.name}</div>
                           <div className="text-[15px] text-white/60 truncate">{inst.title}</div>
@@ -683,7 +684,7 @@ export const HomePage: React.FC = () => {
                 “{reviews[0].quote}”
               </blockquote>
               <figcaption className="mt-auto pt-10 flex items-center gap-4">
-                {reviews[0].avatar && <img src={reviews[0].avatar} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-full object-cover" />}
+                {reviews[0].avatar && <img src={cdnAvatar(reviews[0].avatar, 56)} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-full object-cover" />}
                 <div>
                   <div className="text-[17px] font-semibold text-[#111827]">{reviews[0].author}</div>
                   {reviews[0].course && <div className="text-[15px] text-[#64748B]">{reviews[0].course}</div>}
