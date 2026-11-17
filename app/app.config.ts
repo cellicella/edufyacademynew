@@ -34,9 +34,11 @@ if (process.env.EAS_BUILD === 'true' && releaseProfile) {
 const googleServicesFile =
   process.env.GOOGLE_SERVICES_JSON || (fs.existsSync(path.resolve('google-services.json')) ? './google-services.json' : undefined);
 
-// EAS project id (needed for Expo push tokens). `eas init` prints it; set EAS_PROJECT_ID in app/.env
-// (or the EAS dashboard) — it is not a secret.
-const easProjectId = process.env.EAS_PROJECT_ID || process.env.EXPO_PUBLIC_EAS_PROJECT_ID || undefined;
+// EAS project id (links builds, updates and Expo push tokens to the project on expo.dev). It is not a
+// secret. Fixed here so every build uses the same project; EAS_PROJECT_ID / EXPO_PUBLIC_EAS_PROJECT_ID
+// are no longer needed (a different value there is ignored, so it can't point builds at another project).
+const EAS_PROJECT_ID = '37cb3efb-c3fa-4181-8486-0f5161c535e6';
+const easProjectId = EAS_PROJECT_ID;
 
 const config: ExpoConfig = {
   name: 'Edufy Academy',
@@ -101,6 +103,8 @@ const config: ExpoConfig = {
       {
         photosPermission: 'Choose a profile picture for your Edufy Academy account.',
         cameraPermission: false,
+        // Photos only: without this the plugin adds RECORD_AUDIO, which Google Play asks you to justify.
+        microphonePermission: false,
       },
     ],
   ],
@@ -108,7 +112,7 @@ const config: ExpoConfig = {
   extra: {
     router: {},
     eas: {
-      ...(easProjectId ? { projectId: easProjectId } : {}),
+      projectId: easProjectId,
     },
   },
 };

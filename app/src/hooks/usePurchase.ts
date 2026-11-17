@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BackHandler, NativeModules } from 'react-native';
+import { BackHandler } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { qk, useEnrollments } from '@/hooks/queries';
@@ -7,22 +7,14 @@ import { checkServer, createOrder, PurchaseTarget, verifyPayment } from '@/servi
 import { config } from '@/lib/config';
 import { colors } from '@/theme';
 import { friendlyMessage } from '@/logic/apiErrors';
-import { isFinalVerifyError, isValidRazorpaySuccess, parseRazorpayError, RazorpaySuccess } from '@/logic/payments';
+import { isFinalVerifyError, isValidRazorpaySuccess, RazorpaySuccess } from '@/logic/payments';
 
 export type PurchasePhase = 'review' | 'creating' | 'paying' | 'verifying' | 'success' | 'failed' | 'verify_failed';
 
-/** Native Razorpay SDK when present in the build (development / production build, not Expo Go). */
-function getNativeRazorpay(): { open: (o: any) => Promise<any> } | null {
-  if (!NativeModules.RNRazorpayCheckout) return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('react-native-razorpay');
-    return mod?.default || mod;
-  } catch (e: any) {
-    console.warn('[checkout] native Razorpay unavailable, using web checkout:', e?.message || e);
-    return null;
-  }
-}
+// Payments open Razorpay's standard checkout inside the app (RazorpayWebCheckout, a WebView).
+// The native react-native-razorpay SDK was removed: its Android libraries (com.razorpay:standard-core
+// and com.razorpay:core) share one namespace, which current Android build tools reject. The order is
+// still created and verified by the Edufy server exactly as before.
 
 /**
  * Razorpay purchase flow for a course OR a bundle, using the existing server endpoints:
@@ -145,20 +137,7 @@ export function usePurchase(target: PurchaseTarget | null, display: { title: str
       };
       setPhase('paying');
       setStep('Opening Razorpay…');
-      const native = getNativeRazorpay();
-      if (native) {
-        let result: any;
-        try {
-          result = await native.open(options);
-        } catch (e: any) {
-          const parsed = parseRazorpayError(e);
-          fail(parsed.message, parsed.cancelled);
-          return;
-        }
-        await verify(result);
-      } else {
-        setWebOptions(options);
-      }
+      setWebOptions(options);
     } catch (e: any) {
       if (/already enrolled/i.test(e?.message || '')) {
         await refreshAccess();

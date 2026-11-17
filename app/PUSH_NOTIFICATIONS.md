@@ -25,13 +25,10 @@ Apply `supabase/migrations/20261111000001_edufy_push_notifications.sql` (Supabas
 npm install -g eas-cli
 cd app
 eas login
-eas init            # prints the project id
+npx eas-cli project:info   # confirms the link
 ```
-Put the id in `app/.env`:
-```
-EAS_PROJECT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-The id is not a secret.
+The project id (`37cb3efb-c3fa-4181-8486-0f5161c535e6`) is set in `app.config.ts` → `extra.eas.projectId`;
+no `EAS_PROJECT_ID` variable is needed. The id is not a secret.
 
 ### c) Firebase (Android delivery)
 1. Firebase console → create a project → **Add app → Android**, package name `com.edufyacademy.student`.

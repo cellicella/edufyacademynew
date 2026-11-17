@@ -6,10 +6,10 @@
   "type": "module",
   "main": "server-dist/server.mjs",
   "engines": {
-    "node": ">=20.6"
+    "node": ">=22"
   },
   "scripts": {
-    "build": "esbuild server.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=server-dist/server.mjs",
+    "build": "esbuild server.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=server-dist/server.mjs",
     "start": "node server-dist/server.mjs",
     "dev": "tsx server.ts",
     "test": "tsx --test tests/backend.test.ts tests/cron.test.ts tests/emailSystem.test.ts tests/pushLogic.test.ts tests/settings.test.ts tests/smtp.test.ts"

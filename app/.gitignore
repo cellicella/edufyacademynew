@@ -21,3 +21,6 @@ yarn-error.*
 # Firebase config for Android push (keep out of git)
 google-services.json
 GoogleService-Info.plist
+
+# EAS helper script logs (may contain account details)
+.eas-logs/

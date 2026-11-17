@@ -22,7 +22,7 @@ The app is not uploaded to Hostinger. It is installed from Google Play (AAB) or 
 cd app
 npm ci
 npx eas-cli login              (your expo.dev account)
-npx eas-cli init               (links the project; prints the project id: set EAS_PROJECT_ID)
+npx eas-cli project:info       (project id 37cb3efb-c3fa-4181-8486-0f5161c535e6 is already in app.config.ts)
 ```
 
 ## 2. Production settings in EAS
@@ -33,7 +33,6 @@ npx eas-cli env:create --environment production --environment preview --name EXP
 npx eas-cli env:create --environment production --environment preview --name EXPO_PUBLIC_WEB_URL --value https://edufyacademy.com --visibility plaintext
 npx eas-cli env:create --environment production --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value https://tyqdyfecdvclwsvcahod.supabase.co --visibility plaintext
 npx eas-cli env:create --environment production --environment preview --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <publishable key> --visibility plaintext
-npx eas-cli env:create --environment production --environment preview --name EAS_PROJECT_ID --value <project id> --visibility plaintext
 npx eas-cli env:create --environment production --environment preview --name GOOGLE_SERVICES_JSON --type file --value .\google-services.json --visibility secret
 ```
 If your eas-cli version does not accept two `--environment` flags in one line, run each line once per environment.

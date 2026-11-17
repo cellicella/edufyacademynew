@@ -13,7 +13,7 @@ Hostinger (Business plan, Node.js app on `api.edufyacademy.com`) deploys every p
 | Setting | Value |
 |---|---|
 | Framework | Express |
-| Node.js | 22 |
+| Node.js | 22 (required: Supabase needs the built-in WebSocket of Node 22+) |
 | Install | `npm install` |
 | Build script | `build` (esbuild → `server-dist/server.mjs`) |
 | Entry file | `server-dist/server.mjs` |
