@@ -17,6 +17,7 @@ import { createManagementClient } from './server/supabaseManagement';
 import { registerAuthEmailHook } from './server/authHook';
 import { createCronHandler } from './server/cron';
 import { createImageService, ImageHttpError } from './server/images';
+import { createAdiloLibrary, LibraryError } from './server/adiloLibrary';
 import { renderIndexHtml, robotsTxt } from './server/settingsSchema';
 
 // .env.local holds public VITE_ values; .env holds server-only secrets. Neither is committed.
@@ -1931,6 +1932,8 @@ app.delete('/api/adilo/files/:fileId', async (req: Request, res: Response) => {
     const fileId = req.params.fileId;
     const { data: upload } = await supabaseAdmin!.from('adilo_uploads').select('id, user_id').eq('adilo_file_id', fileId).maybeSingle();
     const { data: lessons } = await supabaseAdmin!.from('lessons').select('id, course_id, courses(instructor_id)').eq('adilo_file_id', fileId);
+    // Videos from the Adilo library (imported, not uploaded through Edufy) are never deleted from Adilo
+    if (!upload) throw new AdiloError(409, 'This video comes from your Adilo library, so Edufy does not delete it from Adilo. Remove it from the lesson instead.');
     const ownsAll = (lessons || []).every((l: any) => l.courses?.instructor_id === user.id);
     const allowed = role === 'admin' || (upload?.user_id === user.id && ownsAll) || ((lessons || []).length > 0 && ownsAll);
     if (!allowed) throw new AdiloError(403, 'Not allowed to delete this video.');
@@ -2374,6 +2377,24 @@ app.post('/api/admin/lessons/bulk-import', async (req: Request, res: Response) =
     sendImportError(res, err);
   }
 });
+
+// ============================================================================
+// IMPORT FROM ADILO (admin): browse the Adilo library, create lessons or attach videos in bulk — see server/adiloLibrary.ts
+// ============================================================================
+const adiloLibrary = createAdiloLibrary({
+  db: supabaseAdmin,
+  request: (method, path) => adiloRequest(method, path),
+  configured: adiloConfigured,
+  requireAdmin: async (req: Request) => {
+    if (!supabaseAdmin) throw new LibraryError(503, 'Database unavailable.');
+    const auth = await getAuthUserProfile(req);
+    if (!auth?.user) throw new LibraryError(401, 'Authentication required.');
+    if (auth.profile?.role !== 'admin') throw new LibraryError(403, 'Only administrators can import from Adilo.');
+    return { id: auth.user.id };
+  },
+  refreshCourseTotals,
+});
+adiloLibrary.registerRoutes(app);
 
 // ============================================================================
 // PUSH NOTIFICATIONS (admin API + background sender) — see server/push.ts

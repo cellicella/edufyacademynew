@@ -36,7 +36,7 @@ export default function BlogScreen() {
           </ScrollView>
         )}
       </View>
-      {posts.error ? (
+      {posts.error && !posts.data ? (
         <ErrorState message={friendlyMessage(posts.error)} onRetry={() => posts.refetch()} />
       ) : posts.isLoading ? (
         <View style={{ padding: 20, gap: 16 }}>{[0, 1, 2].map((i) => <Skeleton key={i} style={{ height: 280, borderRadius: radius.xl }} />)}</View>

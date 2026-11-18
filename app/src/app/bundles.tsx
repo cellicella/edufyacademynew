@@ -17,7 +17,7 @@ export default function BundlesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Course bundles" />
-      {bundles.error ? (
+      {bundles.error && !bundles.data ? (
         <ErrorState message={friendlyMessage(bundles.error)} onRetry={() => bundles.refetch()} />
       ) : bundles.isLoading ? (
         <View style={{ padding: 20, gap: 14 }}>{[0, 1].map((i) => <Skeleton key={i} style={{ height: 260, borderRadius: radius.xl }} />)}</View>

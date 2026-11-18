@@ -10,7 +10,7 @@ import { PriceTag, Thumb } from '@/components/CourseCards';
 import { Curriculum } from '@/components/Curriculum';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ScreenHeader } from '@/components/Chrome';
-import { Avatar, Badge, Button, ErrorState, Loading } from '@/components/ui';
+import { Avatar, Badge, Button, ErrorState, Loading, Skeleton } from '@/components/ui';
 import { colors, fonts, radius, shadowLg, type } from '@/theme';
 import { formatDuration, formatMinutes } from '@/utils/format';
 import { resolveVideo } from '@/utils/video';
@@ -19,19 +19,21 @@ import { friendlyMessage } from '@/logic/apiErrors';
 export default function CourseDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const course = useCourse(id);
+  const course = useCourse(id, { fromList: true }); // drawn instantly from the catalogue, curriculum follows
   const { enrolled, isLoading: enrolLoading } = useIsEnrolled(course.data?.id);
   const [showAllDesc, setShowAllDesc] = useState(false);
   const [preview, setPreview] = useState(false);
   const { add: addRecent } = useRecentlyViewed();
-  const loadedId = course.data?.id;
+  const curriculumLoading = course.isPlaceholderData;
+  const loadedId = curriculumLoading ? undefined : course.data?.id;
   // "Recently viewed" on Home (stored on this device only)
   useEffect(() => {
     if (loadedId) addRecent(loadedId);
   }, [loadedId, addRecent]);
 
   if (course.isLoading) return <View style={{ flex: 1 }}><ScreenHeader /><Loading label="Loading course…" /></View>;
-  if (course.error || !course.data) {
+  // A failed background refresh keeps showing the cached course; the error screen is only for no data at all
+  if (!course.data) {
     return (
       <View style={{ flex: 1 }}>
         <ScreenHeader />
@@ -123,9 +125,13 @@ export default function CourseDetails() {
           <View style={{ marginTop: 26 }}>
             <Text style={type.h2}>Course curriculum</Text>
             <Text style={[type.small, { marginTop: 4, marginBottom: 12 }]}>
-              {c.sections.length} sections · {c.totalLessons} lessons · {formatMinutes(totalMinutes)} total
+              {curriculumLoading ? `${c.totalLessons} lessons` : `${c.sections.length} sections · ${c.totalLessons} lessons · ${formatMinutes(totalMinutes)} total`}
             </Text>
-            {c.sections.length ? (
+            {curriculumLoading ? (
+              <View style={{ gap: 10 }} accessibilityLabel="Loading the curriculum">
+                {[0, 1, 2].map((i) => <Skeleton key={i} style={{ height: 56, borderRadius: radius.lg }} />)}
+              </View>
+            ) : c.sections.length ? (
               <Curriculum
                 sections={c.sections}
                 canOpen={(l) => enrolled || (l.isFreePreview && l.accessible)}

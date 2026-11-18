@@ -9,12 +9,13 @@ import { Course } from '@/lib/types';
 import { discountPercent, formatDuration, formatPrice } from '@/utils/format';
 import { Badge, Button, ProgressBar } from './ui';
 import { PressableScale } from './Engagement';
-import { LearningItem } from '@/hooks/queries';
+import { LearningItem, usePrefetchCourse } from '@/hooks/queries';
 import { cdnImage } from '@/logic/cdnImage';
 
-export const Thumb: React.FC<{ uri: string | null; style: any; radius?: number }> = ({ uri, style, radius: r = radius.lg }) =>
+/** Course image from the CDN at `size` px wide (kept in memory and on disk, so revisits draw instantly). */
+export const Thumb: React.FC<{ uri: string | null; style: any; radius?: number; size?: number }> = ({ uri, style, radius: r = radius.lg, size = 720 }) =>
   uri ? (
-    <Image source={{ uri: cdnImage(uri, 720) }} style={[style, { borderRadius: r, backgroundColor: colors.primarySoft }]} contentFit="cover" transition={200} recyclingKey={uri} />
+    <Image source={{ uri: cdnImage(uri, size) }} style={[style, { borderRadius: r, backgroundColor: colors.primarySoft }]} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={uri} />
   ) : (
     <LinearGradient colors={gradients.brand} style={[style, { borderRadius: r, alignItems: 'center', justifyContent: 'center' }]}>
       <Ionicons name="school" size={28} color="rgba(255,255,255,0.9)" />
@@ -52,8 +53,10 @@ const Rating: React.FC<{ course: Course }> = ({ course }) =>
 /** Vertical course card used in rails and grids */
 export const CourseCard = React.memo(function CourseCard({ course, width, enrolled, progress }: { course: Course; width?: number; enrolled?: boolean; progress?: number }) {
   const off = discountPercent(course.price, course.originalPrice);
+  const prefetch = usePrefetchCourse();
   return (
     <PressableScale
+      onPressIn={() => prefetch(course.id)}
       onPress={() => router.push(enrolled ? `/learn/${course.id}` : `/course/${course.id}`)}
       accessibilityRole="button"
       accessibilityLabel={enrolled ? `${course.title}, ${progress ?? 0}% complete` : `${course.title}, ${formatPrice(course.price)}`}
@@ -101,14 +104,16 @@ export const CourseCard = React.memo(function CourseCard({ course, width, enroll
 
 /** Horizontal compact row used in search results and lists */
 export const CourseRow = React.memo(function CourseRow({ course, enrolled }: { course: Course; enrolled?: boolean }) {
+  const prefetch = usePrefetchCourse();
   return (
   <Pressable
+    onPressIn={() => prefetch(course.id)}
     onPress={() => router.push(`/course/${course.id}`)}
     accessibilityRole="button"
     accessibilityLabel={course.title}
     style={({ pressed }) => [styles.row, pressed && { opacity: 0.92 }]}
   >
-    <Thumb uri={course.thumbnail} style={styles.rowThumb} radius={radius.md} />
+    <Thumb uri={course.thumbnail} style={styles.rowThumb} radius={radius.md} size={360} />
     <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
       <Text style={[type.eyebrow, { color: colors.secondary, fontSize: 10.5 }]} numberOfLines={1}>{course.category} · {course.level}</Text>
       <Text style={[type.h3, { fontSize: 15.5, lineHeight: 21 }]} numberOfLines={2}>{course.title}</Text>
@@ -127,15 +132,17 @@ export const CourseRow = React.memo(function CourseRow({ course, enrolled }: { c
 /** My Learning card with progress */
 export const LearningCard = React.memo(function LearningCard({ item, compact }: { item: LearningItem; compact?: boolean }) {
   const { course, progress } = item;
+  const prefetch = usePrefetchCourse();
   return (
     <Pressable
+      onPressIn={() => prefetch(course.id)}
       onPress={() => router.push(`/learn/${course.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`${course.title}, ${progress.percent}% complete`}
       style={({ pressed }) => [styles.learn, compact && { width: 290 }, pressed && { opacity: 0.94 }]}
     >
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        <Thumb uri={course.thumbnail} style={styles.learnThumb} radius={radius.md} />
+        <Thumb uri={course.thumbnail} style={styles.learnThumb} radius={radius.md} size={360} />
         <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
           <Text style={[type.h3, { fontSize: 15.5, lineHeight: 21 }]} numberOfLines={2}>{course.title}</Text>
           <Text style={type.small} numberOfLines={1}>{course.instructor.name}</Text>

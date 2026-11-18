@@ -82,6 +82,8 @@ export const AdiloUploader: React.FC<Props> = ({ lesson, courseId, onChange, not
   const inputRef = useRef<HTMLInputElement>(null);
 
   const busy = phase === 'preparing' || phase === 'uploading' || phase === 'completing';
+  // Imported from the Adilo library (not uploaded through Edufy): never deleted from Adilo, only detached
+  const fromLibrary = lesson.videoStatus === 'library';
 
   const validate = (f: File): string | null => {
     if (f.type !== 'video/mp4' || !f.name.toLowerCase().endsWith('.mp4')) return 'Please choose an MP4 video (.mp4).';
@@ -110,7 +112,7 @@ export const AdiloUploader: React.FC<Props> = ({ lesson, courseId, onChange, not
     setError(null);
     setProgress(0);
     setPhase('preparing');
-    const previousFileId = lesson.adiloFileId || null;
+    const previousFileId = fromLibrary ? null : lesson.adiloFileId || null;
 
     try {
       const durationSeconds = await readDuration(f);
@@ -190,6 +192,15 @@ export const AdiloUploader: React.FC<Props> = ({ lesson, courseId, onChange, not
 
   const remove = async () => {
     if (!lesson.adiloFileId) return;
+    if (fromLibrary) {
+      if (!window.confirm('Remove this video from the lesson? It stays in your Adilo library. Save the course to apply.')) return;
+      onChange({ adiloFileId: null, adiloEmbedUrl: null, videoTitle: null, videoDuration: null, videoStatus: null });
+      setEmbedInput('');
+      setPhase('idle');
+      setFile(null);
+      notify?.('Video removed from the lesson (kept in Adilo). Save the course to apply.', 'info');
+      return;
+    }
     if (!window.confirm('Delete this video from Adilo? Learners will no longer be able to watch it.')) return;
     setDeleting(true);
     try {
@@ -224,14 +235,14 @@ export const AdiloUploader: React.FC<Props> = ({ lesson, courseId, onChange, not
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-semibold text-[#111827] truncate">{lesson.videoTitle || 'Uploaded video'}</div>
             <div className="text-[13px] text-[#64748B]">
-              {lesson.videoDuration ? `${fmtDuration(lesson.videoDuration)} · ` : ''}Status: {lesson.videoStatus || 'uploaded'}
+              {lesson.videoDuration ? `${fmtDuration(lesson.videoDuration)} · ` : ''}{fromLibrary ? 'From your Adilo library' : `Status: ${lesson.videoStatus || 'uploaded'}`}
             </div>
           </div>
           <button type="button" onClick={() => inputRef.current?.click()} className="ed-btn ed-btn-tonal ed-btn-sm">
             <RefreshCw className="w-4 h-4" /> Replace
           </button>
           <button type="button" onClick={remove} disabled={deleting} className="ed-btn ed-btn-text ed-btn-sm !text-rose-600">
-            <Trash2 className="w-4 h-4" /> {deleting ? 'Deleting…' : 'Delete'}
+            <Trash2 className="w-4 h-4" /> {fromLibrary ? 'Remove' : deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       )}

@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server-dist",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/courseUtils.test.ts tests/backend.test.ts tests/pushLogic.test.ts tests/settings.test.ts tests/siteSettings.web.test.ts tests/smtp.test.ts tests/emailSystem.test.ts tests/cron.test.ts tests/localAddresses.web.test.ts tests/authLinks.web.test.ts tests/cloudinary.test.ts tests/cdnImage.web.test.ts"
+    "test": "tsx --test src/utils/courseUtils.test.ts tests/backend.test.ts tests/pushLogic.test.ts tests/settings.test.ts tests/siteSettings.web.test.ts tests/smtp.test.ts tests/emailSystem.test.ts tests/cron.test.ts tests/localAddresses.web.test.ts tests/authLinks.web.test.ts tests/cloudinary.test.ts tests/cdnImage.web.test.ts tests/adiloLibrary.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

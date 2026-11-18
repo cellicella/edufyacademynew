@@ -200,7 +200,7 @@ if (-not $WebsiteOnly) {
   Copy-Item -LiteralPath (Join-Path $Root 'server.ts') -Destination $Work
   Copy-Item -LiteralPath (Join-Path $Root 'server') -Destination $Work -Recurse
   New-Item -ItemType Directory -Path (Join-Path $Work 'tests') | Out-Null
-  foreach ($t in @('backend', 'cron', 'emailSystem', 'pushLogic', 'settings', 'smtp', 'cloudinary')) {
+  foreach ($t in @('backend', 'cron', 'emailSystem', 'pushLogic', 'settings', 'smtp', 'cloudinary', 'adiloLibrary')) {
     Copy-Item -LiteralPath (Join-Path $Root ('tests\' + $t + '.test.ts')) -Destination (Join-Path $Work 'tests')
   }
   Get-ChildItem -LiteralPath (Join-Path $Root 'production\api-repo') -Force | Copy-Item -Destination $Work -Recurse

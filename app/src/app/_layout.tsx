@@ -18,6 +18,8 @@ import { Button } from '@/components/ui';
 import { configureNotifications } from '@/services/notifications';
 import { retryDelay, shouldRetryQuery } from '@/logic/apiErrors';
 import { colors } from '@/theme';
+import { prefetchCatalogue } from '@/hooks/queries';
+import { restoreQueryCache, startQueryCachePersistence } from '@/lib/queryPersist';
 
 const isExpoGo = isRunningInExpoGo();
 
@@ -44,6 +46,15 @@ const queryClient = new QueryClient({
     mutations: { retry: false },
   },
 });
+
+// Start-up: load the copy saved on the phone, then refresh the catalogue in parallel with the session restore
+// (fresh entries are skipped). Changes are saved back in the background.
+if (Platform.OS !== 'web') {
+  restoreQueryCache(queryClient).finally(() => {
+    prefetchCatalogue(queryClient).catch(() => undefined);
+  });
+  startQueryCachePersistence(queryClient);
+}
 
 /** Last-resort screen for unexpected render errors (expo-router error boundary). */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {

@@ -34,7 +34,7 @@ export default function BlogPostScreen() {
   };
 
   if (q.isLoading) return <View style={{ flex: 1, backgroundColor: colors.bg }}><ScreenHeader title="Article" /><Loading /></View>;
-  if (q.error) return <View style={{ flex: 1, backgroundColor: colors.bg }}><ScreenHeader title="Article" /><ErrorState message={friendlyMessage(q.error)} onRetry={() => q.refetch()} /></View>;
+  if (q.error && !q.data) return <View style={{ flex: 1, backgroundColor: colors.bg }}><ScreenHeader title="Article" /><ErrorState message={friendlyMessage(q.error)} onRetry={() => q.refetch()} /></View>;
   if (!post) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>

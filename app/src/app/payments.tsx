@@ -23,7 +23,7 @@ export default function Payments() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Payment history" />
-      {payments.error ? (
+      {payments.error && !payments.data ? (
         <ErrorState message={friendlyMessage(payments.error)} onRetry={() => payments.refetch()} />
       ) : payments.isLoading ? (
         <Loading />

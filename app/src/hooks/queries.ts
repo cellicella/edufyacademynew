@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCategoryRows, fetchCourse, fetchPublishedCourses, mergeCategories } from '@/services/courses';
 import { fetchEnrollments, fetchProgress } from '@/services/learning';
@@ -8,6 +8,11 @@ import { fetchBundle, fetchBundles } from '@/services/bundles';
 import { fetchMyCertificates } from '@/services/certificates';
 import { Course, CourseProgress } from '@/lib/types';
 import { emptyProgress } from '@/logic/progress';
+import { findCourseInList, progressFromCache } from '@/logic/queryCache';
+import { fetchBanners } from '@/services/inbox';
+import { Image } from 'expo-image';
+import { cdnImage } from '@/logic/cdnImage';
+import type { Banner } from '@/logic/engagement';
 
 export const qk = {
   courses: ['courses'] as const,
@@ -20,32 +25,92 @@ export const qk = {
   certificates: (uid?: string) => ['certificates', uid] as const,
 };
 
+/** How long data counts as fresh (cached data is still shown instantly and refreshed in the background). */
+export const STALE = {
+  catalogue: 5 * 60_000,
+  categories: 10 * 60_000,
+  course: 5 * 60_000,
+  enrollments: 2 * 60_000,
+  progress: 60_000,
+} as const;
+
+const coursesQuery = { queryKey: qk.courses, queryFn: ({ signal }: { signal?: AbortSignal }) => fetchPublishedCourses(signal), staleTime: STALE.catalogue };
+const categoriesQuery = { queryKey: ['categories'] as const, queryFn: ({ signal }: { signal?: AbortSignal }) => fetchCategoryRows(signal), staleTime: STALE.categories };
+const courseQuery = (id: string, uid: string | undefined) => ({
+  // Lesson visibility depends on who is signed in, so cache per user
+  queryKey: [...qk.course(id), uid || 'guest'] as const,
+  queryFn: ({ signal }: { signal?: AbortSignal }) => fetchCourse(id, signal),
+  staleTime: STALE.course,
+});
+
+/**
+ * Starts loading the catalogue (courses, categories, home banners) in parallel — called at app start while the
+ * session is restored. Skips anything already fresh in the cache, so it never causes repeated requests.
+ */
+export async function prefetchCatalogue(qc: QueryClient): Promise<void> {
+  await Promise.allSettled([
+    qc.prefetchQuery(coursesQuery),
+    qc.prefetchQuery(categoriesQuery),
+    qc.prefetchQuery({ queryKey: ['banners'], queryFn: ({ signal }) => fetchBanners(signal), staleTime: STALE.catalogue }),
+  ]);
+  // Download the first course cards and banners at the exact CDN size the screens use
+  const urls = [
+    ...(qc.getQueryData<Banner[]>(['banners']) || []).map((b) => cdnImage(b.imageUrl, 1080)),
+    ...(qc.getQueryData<Course[]>(qk.courses) || []).slice(0, 12).map((c) => cdnImage(c.thumbnail, 720)),
+  ].filter((u): u is string => !!u);
+  if (urls.length) Image.prefetch(urls, 'memory-disk').catch(() => undefined);
+}
+
+/** Starts loading the signed-in student's enrolments (Home / My Learning) during start-up. */
+export function prefetchEnrollments(qc: QueryClient, uid: string): Promise<unknown> {
+  return qc.prefetchQuery({ queryKey: qk.enrollments(uid), queryFn: () => fetchEnrollments(uid), staleTime: STALE.enrollments });
+}
+
 export function useCourses() {
-  return useQuery({ queryKey: qk.courses, queryFn: ({ signal }) => fetchPublishedCourses(signal), staleTime: 5 * 60_000 });
+  return useQuery(coursesQuery);
+}
+
+/** Returns a function that warms a course page (on press-in, before navigation finishes). */
+export function usePrefetchCourse() {
+  const qc = useQueryClient();
+  const { session } = useAuth();
+  const uid = session?.user.id;
+  return useCallback((id: string) => {
+    qc.prefetchQuery(courseQuery(id, uid)).catch(() => undefined);
+  }, [qc, uid]);
 }
 
 /** Categories from the admin panel (database), with live course counts. */
 export function useCategories() {
   const q = useCourses();
-  const rows = useQuery({ queryKey: ['categories'], queryFn: ({ signal }) => fetchCategoryRows(signal), staleTime: 10 * 60_000 });
+  const rows = useQuery(categoriesQuery);
   const data = useMemo(() => (q.data ? mergeCategories(rows.isLoading ? null : rows.data ?? null, q.data) : []), [q.data, rows.data, rows.isLoading]);
   return { ...q, data };
 }
 
-export function useCourse(id: string | undefined) {
+/**
+ * Course + curriculum. With `fromList`, the course page is drawn at once from the catalogue already in the
+ * cache (title, price, description…) while the curriculum loads — `isPlaceholderData` is true until then.
+ */
+export function useCourse(id: string | undefined, opts: { fromList?: boolean } = {}) {
   const { session } = useAuth();
-  // Lesson visibility depends on who is signed in, so cache per user
+  const qc = useQueryClient();
   return useQuery({
-    queryKey: [...qk.course(id || ''), session?.user.id || 'guest'],
-    queryFn: ({ signal }) => fetchCourse(id!, signal),
+    ...courseQuery(id || '', session?.user.id),
     enabled: !!id,
+    placeholderData: opts.fromList
+      ? () => {
+          const c = findCourseInList(qc.getQueryData<Course[]>(qk.courses), id);
+          return c ? { ...c, sections: [] } : undefined;
+        }
+      : undefined,
   });
 }
 
 export function useEnrollments() {
   const { session } = useAuth();
   const uid = session?.user.id;
-  return useQuery({ queryKey: qk.enrollments(uid), queryFn: () => fetchEnrollments(uid!), enabled: !!uid });
+  return useQuery({ queryKey: qk.enrollments(uid), queryFn: () => fetchEnrollments(uid!), enabled: !!uid, staleTime: STALE.enrollments });
 }
 
 export function useIsEnrolled(courseId: string | undefined) {
@@ -55,9 +120,21 @@ export function useIsEnrolled(courseId: string | undefined) {
 
 export function useProgress(courseIds: string[]) {
   const { session } = useAuth();
+  const qc = useQueryClient();
   const uid = session?.user.id;
   const key = [...courseIds].sort().join(',');
-  return useQuery({ queryKey: qk.progress(uid, key), queryFn: () => fetchProgress(uid!, courseIds), enabled: !!uid && courseIds.length > 0 });
+  return useQuery({
+    queryKey: qk.progress(uid, key),
+    queryFn: () => fetchProgress(uid!, courseIds),
+    enabled: !!uid && courseIds.length > 0,
+    staleTime: STALE.progress,
+    // One course (lesson player): start from the progress Home / My Learning already loaded
+    // and keep the previous numbers on screen while a changed course list refreshes
+    placeholderData: (previous: Record<string, CourseProgress> | undefined) =>
+      courseIds.length === 1
+        ? progressFromCache(qc.getQueriesData<Record<string, CourseProgress>>({ queryKey: ['progress', uid] }), courseIds[0])
+        : previous,
+  });
 }
 
 export interface LearningItem {

@@ -9,6 +9,7 @@ import { loadOrCreateProfile } from '@/services/profile';
 import { authMessage } from '@/logic/authErrors';
 import { friendlyMessage } from '@/logic/apiErrors';
 import { unregisterPush } from '@/services/push';
+import { clearPersistedQueryCache } from '@/lib/queryPersist';
 
 interface AuthState {
   session: Session | null;
@@ -74,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
         setProfileError(null);
         queryClient.clear(); // drop the previous student's cached data
+        clearPersistedQueryCache(); // …including the copy saved on this phone
       }
     });
     return () => {

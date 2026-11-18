@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -46,8 +46,10 @@ export default function Explore() {
 
   const levels = useMemo(() => ['all', ...new Set((courses.data || []).map((c) => c.level).filter(Boolean))], [courses.data]);
 
+  // Typing stays smooth: the list is filtered with a deferred copy of the search text
+  const deferredQ = useDeferredValue(q);
   const results = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = deferredQ.trim().toLowerCase();
     let list = (courses.data || []).filter((c) => {
       if (category !== 'all' && c.categorySlug !== category) return false;
       if (level !== 'all' && c.level !== level) return false;
@@ -65,7 +67,7 @@ export default function Explore() {
     else if (sort === 'price-high') list.sort((a, b) => b.price - a.price);
     else if (term) list.sort((a, b) => Number(b.title.toLowerCase().includes(term)) - Number(a.title.toLowerCase().includes(term)));
     return list;
-  }, [courses.data, q, category, level, price, sort]);
+  }, [courses.data, deferredQ, category, level, price, sort]);
 
   const filtersActive = category !== 'all' || level !== 'all' || price !== 'all' || sort !== 'relevance' || !!q;
 
@@ -99,7 +101,7 @@ export default function Explore() {
         </ScrollView>
       </View>
 
-      {courses.error ? (
+      {courses.error && !courses.data ? (
         <ErrorState message={friendlyMessage(courses.error)} onRetry={() => courses.refetch()} />
       ) : courses.isLoading ? (
         <View style={{ padding: 20, gap: 12 }}>

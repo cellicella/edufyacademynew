@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileSpreadsheet, UploadCloud, Trash2, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Download, Layers } from 'lucide-react';
+import { FileSpreadsheet, UploadCloud, Trash2, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Download, Layers, Film } from 'lucide-react';
 import { courseService, lessonImportService, LessonImportResult } from '../../services/api';
 import { Course } from '../../types';
 import { AdminPageHeader, ErrorBanner } from '../../components/admin/AdminUI';
 import { useCartWishlist } from '../../context/CartWishlistContext';
+import { AdiloLibraryImporter } from './AdiloLibraryImporter';
 
 /* ---------------- CSV parsing (RFC 4180: quotes, commas & line breaks inside quotes) ---------------- */
 function parseCsv(text: string): string[][] {
@@ -96,6 +97,7 @@ export const AdminLessonImporterPage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<LessonImportResult | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [source, setSource] = useState<'csv' | 'adilo'>('csv');
   const fileRef = useRef<HTMLInputElement>(null);
   const checkSeq = useRef(0);
 
@@ -236,11 +238,13 @@ export const AdminLessonImporterPage: React.FC = () => {
       <AdminPageHeader
         eyebrow="Course management"
         title="Bulk lesson importer"
-        description="Upload a CSV of topic names and Adilo video links to create video lessons in one go."
+        description="Create video lessons in one go from a CSV of topic names and Adilo links, or straight from your Adilo library."
         actions={
-          <button onClick={downloadSample} className="ed-btn ed-btn-outlined ed-btn-sm">
-            <Download className="w-4 h-4" /> Sample CSV
-          </button>
+          source === 'csv' ? (
+            <button onClick={downloadSample} className="ed-btn ed-btn-outlined ed-btn-sm">
+              <Download className="w-4 h-4" /> Sample CSV
+            </button>
+          ) : undefined
         }
       />
       {error && <ErrorBanner message={error} />}
@@ -347,6 +351,41 @@ export const AdminLessonImporterPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Source: CSV file or the Adilo library */}
+      <div className="mt-6 inline-flex gap-1 p-1 bg-[#F1F5F9] rounded-full" role="tablist" aria-label="Import source">
+        {([['csv', 'CSV file', FileSpreadsheet], ['adilo', 'Import from Adilo', Film]] as const).map(([id, label, Icon]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={source === id}
+            type="button"
+            onClick={() => setSource(id)}
+            className={`h-10 px-5 rounded-full text-[14px] font-semibold inline-flex items-center gap-2 ${source === id ? 'bg-white text-[#004AAD] shadow-sm' : 'text-[#475569]'}`}
+          >
+            <Icon className="w-4 h-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {source === 'adilo' && (
+        <AdiloLibraryImporter
+          course={course}
+          sectionMode={sectionMode}
+          sectionId={sectionId}
+          newSectionTitle={newSectionTitle}
+          notify={showToast}
+          onImported={async (createdSectionId) => {
+            await loadCourses();
+            if (createdSectionId) {
+              setSectionMode('existing');
+              setSectionId(createdSectionId);
+            }
+          }}
+        />
+      )}
+
+      {source === 'csv' && (
+      <>
       {/* 2 — upload */}
       <section className={`${card} mt-6`}>
         <h2 className="font-display text-[20px] font-bold">2. Upload CSV</h2>
@@ -460,6 +499,8 @@ export const AdminLessonImporterPage: React.FC = () => {
             {!confirming && counts.checking > 0 && <span className="text-[14px] text-[#64748B] inline-flex items-center gap-1"><RefreshCw className="w-4 h-4 animate-spin" /> Validating…</span>}
           </div>
         </section>
+      )}
+      </>
       )}
     </div>
   );

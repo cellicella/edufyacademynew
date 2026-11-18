@@ -40,12 +40,22 @@ export async function fetchCourse(idOrSlug: string, signal?: AbortSignal): Promi
     .or(`id.eq.${safe},slug.eq.${safe}`)
     .limit(1);
   if (signal) q = q.abortSignal(signal);
-  const { data: rows, error } = await q;
+  // Course and outline are requested together (one round trip instead of two). Links normally use the
+  // course id; when a slug was given the outline is fetched again with the real id.
+  let outlineQ = supabase.rpc('get_course_outline', { p_course_ids: [safe] });
+  if (signal) outlineQ = outlineQ.abortSignal(signal);
+  const [{ data: rows, error }, first] = await Promise.all([q, outlineQ]);
   if (error) throw new Error(error.message);
   const data = rows?.[0];
   if (!data) return null;
 
-  const { data: outline, error: outlineErr } = await supabase.rpc('get_course_outline', { p_course_ids: [data.id] });
+  let outlineRes = first;
+  if (data.id !== safe) {
+    let again = supabase.rpc('get_course_outline', { p_course_ids: [data.id] });
+    if (signal) again = again.abortSignal(signal);
+    outlineRes = await again;
+  }
+  const { data: outline, error: outlineErr } = outlineRes;
   if (outlineErr) console.warn('[courses] outline unavailable, showing accessible lessons only:', outlineErr.message);
 
   const sections = buildSections(data.course_sections || [], (outline as any[]) || []);

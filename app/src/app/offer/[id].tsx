@@ -32,7 +32,7 @@ export default function OfferScreen() {
   const bundle = useBundle(offer?.linkType === 'bundle' ? offer.bundleId || undefined : undefined);
 
   if (q.isLoading) return <View style={{ flex: 1 }}><ScreenHeader title="Offer" /><Loading /></View>;
-  if (q.error) return <View style={{ flex: 1 }}><ScreenHeader title="Offer" /><ErrorState message={friendlyMessage(q.error)} onRetry={() => q.refetch()} /></View>;
+  if (q.error && !q.data) return <View style={{ flex: 1 }}><ScreenHeader title="Offer" /><ErrorState message={friendlyMessage(q.error)} onRetry={() => q.refetch()} /></View>;
   // Not returned (expired, disabled or deleted — the database only serves live offers) or expired since caching
   if (!offer || !isLive(offer)) {
     return (

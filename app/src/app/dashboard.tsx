@@ -28,7 +28,7 @@ export default function Dashboard() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Student dashboard" />
-      {learning.error ? (
+      {learning.error && !learning.items.length ? (
         <ErrorState message={friendlyMessage(learning.error)} onRetry={learning.refetch} />
       ) : learning.isLoading ? (
         <Loading />

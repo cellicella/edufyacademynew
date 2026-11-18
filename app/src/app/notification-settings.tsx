@@ -104,7 +104,7 @@ export default function NotificationSettings() {
 
         <View style={{ gap: 8 }}>
           <Text style={[type.eyebrow, { color: colors.muted }]}>What you’ll hear about</Text>
-          {prefsQ.error ? (
+          {prefsQ.error && !prefsQ.data ? (
             <ErrorState message={friendlyMessage(prefsQ.error)} onRetry={() => prefsQ.refetch()} />
           ) : (
             <View style={styles.group}>

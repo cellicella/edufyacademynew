@@ -53,7 +53,7 @@ export default function CertificatesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="My certificates" right={<Ionicons name="shield-checkmark-outline" size={22} color={colors.ink} onPress={() => router.push('/verify-certificate')} accessibilityLabel="Verify a certificate" />} />
-      {certs.error ? (
+      {certs.error && !certs.data ? (
         <ErrorState message={friendlyMessage(certs.error)} onRetry={() => certs.refetch()} />
       ) : loading ? (
         <Loading />

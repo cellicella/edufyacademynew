@@ -1509,6 +1509,54 @@ export interface LessonImportResult {
   results: { index: number; title: string; status: 'created' | 'skipped' | 'failed'; lessonId: string | null; error: string | null }[];
 }
 
+/* ---------------- Import from Adilo (admin) — the server holds the Adilo keys ---------------- */
+export interface AdiloLibraryProject { id: string; title: string; createdAt: string | null }
+export interface AdiloLibraryFolder { id: string; title: string; projectId: string | null; parentId: string | null }
+export interface AdiloVideoUsage { courseId: string; courseTitle: string; sectionTitle: string | null; lessonId: string; lessonTitle: string }
+export interface AdiloLibraryVideo {
+  id: string;
+  title: string;
+  durationSeconds: number | null;
+  durationFormatted: string | null;
+  projectId: string | null;
+  projectTitle: string | null;
+  folderId: string | null;
+  createdAt: string | null;
+  usage: AdiloVideoUsage[];
+  usedInCourse: boolean;
+}
+export interface AdiloImportResult {
+  course: { id: string; title: string };
+  section: { id: string; title: string; created: boolean } | null;
+  total: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  results: { index: number; fileId: string; title: string; status: 'created' | 'skipped' | 'failed'; lessonId: string | null; error: string | null }[];
+}
+export interface AdiloMapResult {
+  course: { id: string; title: string };
+  total: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  results: { index: number; lessonId: string; fileId: string; status: 'updated' | 'skipped' | 'failed'; error: string | null }[];
+}
+
+const postJson = (path: string, body: unknown) => authedFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+export const adiloLibraryService = {
+  status: () => authedFetch('/admin/adilo/library/status') as Promise<{ configured: boolean }>,
+  projects: () => authedFetch('/admin/adilo/projects') as Promise<{ projects: AdiloLibraryProject[] }>,
+  folders: (projectId: string) => authedFetch(`/admin/adilo/projects/${encodeURIComponent(projectId)}/folders`) as Promise<{ folders: AdiloLibraryFolder[] }>,
+  videos: (projectId: string, courseId?: string) =>
+    authedFetch(`/admin/adilo/projects/${encodeURIComponent(projectId)}/files${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`) as Promise<{ videos: AdiloLibraryVideo[]; truncated: boolean }>,
+  importLessons: (body: { courseId: string; sectionId?: string | null; newSectionTitle?: string; items: { fileId: string; title?: string }[] }) =>
+    postJson('/admin/adilo/import', body) as Promise<AdiloImportResult>,
+  mapLessons: (body: { courseId: string; replace: boolean; mappings: { lessonId: string; fileId: string }[] }) => postJson('/admin/adilo/map', body) as Promise<AdiloMapResult>,
+  inspect: () => authedFetch('/admin/adilo/inspect') as Promise<Record<string, unknown>>,
+};
+
 export const lessonImportService = {
   check: (courseId: string, sectionId: string | null, rows: LessonImportRowInput[]) =>
     authedFetch('/admin/lessons/bulk-import/check', {

@@ -175,7 +175,7 @@ export default function Home() {
           </FadeIn>
         )}
 
-        {courses.error ? (
+        {courses.error && !courses.data ? (
           <ErrorState message={friendlyMessage(courses.error)} onRetry={() => courses.refetch()} />
         ) : courses.isLoading ? (
           <View style={{ paddingHorizontal: 20, gap: 16, marginTop: 20 }}>

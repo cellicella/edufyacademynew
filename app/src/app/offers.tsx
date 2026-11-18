@@ -15,7 +15,7 @@ export default function OffersScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Special offers" />
-      {offers.error ? (
+      {offers.error && !offers.data.length ? (
         <ErrorState message={friendlyMessage(offers.error)} onRetry={() => offers.refetch()} />
       ) : offers.isLoading ? (
         <View style={{ padding: 20, gap: 14 }}>{[0, 1, 2].map((i) => <Skeleton key={i} style={{ height: 210, borderRadius: radius.xl }} />)}</View>

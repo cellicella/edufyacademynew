@@ -10,18 +10,16 @@ import { useAuth } from '@/context/AuthContext';
 import { isSecureStoreSupported, prefs } from '@/lib/secureStorage';
 import { missingConfig } from '@/lib/config';
 import { pendingLink } from '@/lib/navigation';
-import { qk } from '@/hooks/queries';
-import { ek } from '@/hooks/engagement';
-import { fetchPublishedCourses } from '@/services/courses';
-import { fetchBanners } from '@/services/inbox';
+import { prefetchCatalogue, prefetchEnrollments, qk } from '@/hooks/queries';
+import { restoreQueryCache } from '@/lib/queryPersist';
 import { Logo } from '@/components/Chrome';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { isHttps } from '@/logic/siteSettings';
 import { colors, fonts } from '@/theme';
 
-const MIN_SPLASH_MS = 1800; // long enough for the intro animation, short enough not to annoy
+const MIN_SPLASH_MS = 1000; // the logo intro, without holding the student up
 const MAX_SPLASH_MS = 8000; // never keep the splash up longer than this
-const PREFETCH_BUDGET_MS = 2500;
+const PREFETCH_BUDGET_MS = 2000;
 const EXIT_MS = 320;
 
 // Soft twinkling dots in the background (fixed layout, percentages of the screen)
@@ -130,16 +128,25 @@ export default function Entry() {
     };
   }, [intro, brand, words, stars, spin, ripple, drift, twinkle, shine]);
 
-  // Warm the home screen's data (bounded — never delays start-up beyond the budget)
+  // Warm the home screen's data (bounded — never delays start-up beyond the budget). Runs as soon as the
+  // stored session is known, in parallel with the profile. Data saved on the phone from the last visit is
+  // shown at once and refreshed in the background, so a returning student does not wait for the network.
+  const uid = session?.user.id;
   useEffect(() => {
-    if (initializing || !session) return;
+    if (!uid) return;
+    let alive = true;
     const budget = new Promise((r) => setTimeout(r, PREFETCH_BUDGET_MS));
-    const work = Promise.allSettled([
-      qc.prefetchQuery({ queryKey: qk.courses, queryFn: ({ signal }) => fetchPublishedCourses(signal), staleTime: 5 * 60_000 }),
-      qc.prefetchQuery({ queryKey: ek.banners, queryFn: ({ signal }) => fetchBanners(signal), staleTime: 5 * 60_000 }),
-    ]);
-    Promise.race([work, budget]).finally(() => setPrefetched(true));
-  }, [initializing, session, qc]);
+    const work = restoreQueryCache(qc).then(() => {
+      const warm = Promise.allSettled([prefetchCatalogue(qc), prefetchEnrollments(qc, uid)]);
+      return qc.getQueryData(qk.courses) ? undefined : warm;
+    });
+    Promise.race([work, budget]).finally(() => {
+      if (alive) setPrefetched(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [uid, qc]);
 
   const authReady = !initializing || timedOut;
   const dataReady = !session || prefetched || timedOut;
