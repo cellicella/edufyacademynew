@@ -21,7 +21,8 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { cdnAvatar, cdnImage, cdnSrcSet } from '../../lib/cdnImage';
-import { displayInstructor } from '../../config/leadInstructor';
+import { displayInstructor, isPlatformAccount } from '../../config/leadInstructor';
+import { LeadTutorSection } from '../../components/site/LeadTutorSection';
 import { CoursePurchaseButton } from '../../components/course/CoursePurchase';
 
 /* Authentic educational photography (Unsplash) */
@@ -136,6 +137,7 @@ export const HomePage: React.FC = () => {
   };
 
   /* ------------------------------ Derived data ------------------------------ */
+  const leadCourses = useMemo(() => courses.filter((c) => isPlatformAccount(c.instructor)), [courses]);
   const featuredCourse = useMemo(() => courses.find((c) => c.featured) || courses.find((c) => c.bestseller) || courses[0], [courses]);
 
   const editorsPicks = useMemo(() => {
@@ -528,6 +530,9 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* Meet your lead tutor */}
+      <LeadTutorSection courseHref={leadCourses[0] ? `/courses/${leadCourses[0].id}` : null} courseCount={leadCourses.length} />
 
       {/* ================================================================
           05 — CAREER: split composition with photography

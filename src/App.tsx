@@ -5,6 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { TidioChat } from './components/common/TidioChat';
 import { WhatsAppButton } from './components/common/WhatsAppButton';
 import { AuthProvider } from './context/AuthContext';
 import { CourseProgressProvider } from './context/CourseProgressContext';
@@ -228,6 +229,7 @@ export default function App() {
             </Routes>
             </MaintenanceGate>
             <WhatsAppButton />
+            <TidioChat />
           </BrowserRouter>
         </CartWishlistProvider>
       </CourseProgressProvider>

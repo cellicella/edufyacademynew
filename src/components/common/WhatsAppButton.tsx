@@ -2,14 +2,18 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSiteSettings } from '../../context/SettingsContext';
 import { waHref } from '../../config/siteSettings';
+import { showChatWidgets } from '../../config/chatWidgets';
 
-/** Floating WhatsApp chat button, bottom-left (Tidio chat sits bottom-right). Managed in Settings → WhatsApp. */
+/**
+ * Floating WhatsApp chat button, bottom-left (Tidio chat sits bottom-right). Managed in Settings → WhatsApp.
+ * Shown on the homepage and Contact Us only (src/config/chatWidgets.ts).
+ */
 export const WhatsAppButton: React.FC = () => {
   const { settings } = useSiteSettings();
   const { pathname } = useLocation();
   const w = settings.whatsapp;
   const href = waHref(w.number, w.welcomeMessage);
-  if (!w.enabled || !href || pathname.startsWith('/admin') || pathname.startsWith('/learn')) return null;
+  if (!w.enabled || !href || !showChatWidgets(pathname)) return null;
   const label = w.buttonText || 'Chat with us on WhatsApp';
   return (
     <a

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { courseService } from '../../services/api';
 import { Course } from '../../types';
@@ -59,24 +59,6 @@ export const CourseDetailsPage: React.FC = () => {
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
 
-  // Desktop sticky bar: shown only while neither the hero CTA nor the main purchase buttons are on screen
-  const heroCtaRef = useRef<HTMLDivElement>(null);
-  const mainCtaRef = useRef<HTMLDivElement>(null);
-  const [ctaOnScreen, setCtaOnScreen] = useState(true);
-  useEffect(() => {
-    const targets = [heroCtaRef.current, mainCtaRef.current].filter((el): el is HTMLDivElement => !!el);
-    if (!targets.length || typeof IntersectionObserver === 'undefined') return;
-    const visible = new Map<Element, boolean>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => visible.set(e.target, e.isIntersecting));
-        setCtaOnScreen([...visible.values()].some(Boolean));
-      },
-      { threshold: 0.1 }
-    );
-    targets.forEach((t) => io.observe(t));
-    return () => io.disconnect();
-  }, [course?.id, loading]);
 
   useEffect(() => {
     if (!id) return;
@@ -221,7 +203,7 @@ export const CourseDetailsPage: React.FC = () => {
               </dl>
 
               {/* Purchase — top of the page */}
-              <div ref={heroCtaRef} className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
                 {!enrolled && <PriceInline course={course} />}
                 <CoursePurchaseButton course={course} />
                 {!enrolled && hasPreview && (
@@ -488,7 +470,7 @@ export const CourseDetailsPage: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div ref={mainCtaRef} className="space-y-2.5">
+              <div className="space-y-2.5">
                 {enrolled ? (
                   <button
                     onClick={() => navigate(`/learn/${course.id}`)}
@@ -596,7 +578,7 @@ export const CourseDetailsPage: React.FC = () => {
         </section>
       </div>
 
-      <StickyPurchaseBar course={course} desktopVisible={!ctaOnScreen} />
+      <StickyPurchaseBar course={course} />
     </div>
   );
 };

@@ -122,34 +122,45 @@ export const CtaStrip: React.FC<{ course: PurchaseCourse; heading: string; text?
   );
 };
 
+/** Prominent bar button: ENROLL NOW / CONTINUE LEARNING / ENROLL FOR FREE (existing enrollment flow). */
+export const EnrollNowButton: React.FC<{ course: PurchaseCourse; className?: string }> = ({ course, className = '' }) => {
+  const p = useCoursePurchase(course);
+  const text = p.enrolled ? 'CONTINUE LEARNING' : p.busy ? 'PROCESSING…' : p.free ? 'ENROLL FOR FREE' : 'ENROLL NOW';
+  return (
+    <button
+      type="button"
+      onClick={() => p.run()}
+      disabled={p.disabled && !p.enrolled}
+      aria-label={`${text.toLowerCase()}: ${course.title}`}
+      className={`group relative inline-flex items-center justify-center gap-2 h-12 sm:h-[52px] px-6 sm:px-8 rounded-full text-white text-[14px] sm:text-[15px] font-extrabold tracking-[0.08em] whitespace-nowrap
+        bg-gradient-to-r from-[#004AAD] via-[#5271FF] to-[#5E17EB] bg-[length:200%_100%] bg-left
+        shadow-[0_8px_20px_-8px_rgba(0,74,173,0.6)] transition-[background-position,box-shadow,transform] duration-300 ease-out
+        hover:bg-right hover:shadow-[0_12px_28px_-8px_rgba(94,23,235,0.55)] motion-safe:hover:-translate-y-0.5
+        active:scale-[0.96] active:shadow-[0_4px_12px_-6px_rgba(0,74,173,0.6)]
+        focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#5271FF]/40
+        disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${className}`}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      {p.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+      <span>{text}</span>
+      {!p.busy && (p.enrolled ? <PlayCircle className="w-[18px] h-[18px]" /> : <ArrowRight className="w-[18px] h-[18px] motion-safe:transition-transform motion-safe:group-hover:translate-x-1" />)}
+    </button>
+  );
+};
+
 /**
- * Bottom purchase bar.
- *  - Mobile/tablet (< 1024 px): always shown on the course page, compact, above the safe area.
- *  - Desktop: slides in only when `desktopVisible` (the main purchase buttons are off screen).
- * While it is visible, its height is published as --ed-bottom-bar so the page, footer, WhatsApp button,
- * toasts and live chat move up instead of being covered.
+ * Bottom purchase bar on course pages, visible while scrolling on mobile and desktop.
+ * Its height is published as --ed-bottom-bar so the page and footer get matching bottom space and are never
+ * covered (and toasts sit above it).
  */
-export const StickyPurchaseBar: React.FC<{ course: PurchaseCourse; desktopVisible: boolean }> = ({ course, desktopVisible }) => {
+export const StickyPurchaseBar: React.FC<{ course: PurchaseCourse }> = ({ course }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const on = () => setIsDesktop(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
-
-  const shown = !isDesktop || desktopVisible;
+  const { enrolled } = useCoursePurchase(course);
 
   useEffect(() => {
     const root = document.documentElement;
     const el = ref.current;
-    if (!shown || !el) {
-      root.style.removeProperty('--ed-bottom-bar');
-      delete root.dataset.bottomBar;
-      return;
-    }
+    if (!el) return;
     const apply = () => root.style.setProperty('--ed-bottom-bar', `${Math.ceil(el.getBoundingClientRect().height)}px`);
     apply();
     root.dataset.bottomBar = '1';
@@ -160,25 +171,26 @@ export const StickyPurchaseBar: React.FC<{ course: PurchaseCourse; desktopVisibl
       root.style.removeProperty('--ed-bottom-bar');
       delete root.dataset.bottomBar;
     };
-  }, [shown]);
+  }, []);
 
   return (
     <div
       ref={ref}
       role="region"
-      aria-label="Course purchase"
-      inert={!shown}
-      className={`fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-[#E2E8F0] shadow-[0_-6px_24px_-12px_rgba(17,24,39,0.25)] transition-transform duration-300 ease-out ${
-        shown ? 'translate-y-0' : 'translate-y-full pointer-events-none'
-      }`}
+      aria-label="Course enrollment"
+      className="fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-[#E2E8F0] shadow-[0_-8px_28px_-14px_rgba(17,24,39,0.3)]"
       style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
     >
       <div className="max-w-[1280px] mx-auto px-4 sm:px-8 pt-3 flex items-center gap-4">
         <div className="flex-1 min-w-0">
           <div className="hidden lg:block text-[14px] font-semibold text-[#111827] truncate">{course.title}</div>
-          <PriceInline course={course} size="sm" />
+          {enrolled ? (
+            <div className="text-[14px] font-semibold text-emerald-700">You’re enrolled</div>
+          ) : (
+            <PriceInline course={course} size="sm" />
+          )}
         </div>
-        <CoursePurchaseButton course={course} size="sm" className="shrink-0" />
+        <EnrollNowButton course={course} className="shrink-0" />
       </div>
     </div>
   );

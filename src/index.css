@@ -261,3 +261,6 @@
    --------------------------------------------------------------------------------------------- */
 html[data-bottom-bar] body { padding-bottom: var(--ed-bottom-bar, 0px); }
 html[data-bottom-bar] #tidio-chat-iframe { bottom: var(--ed-bottom-bar, 0px) !important; }
+
+/* Tidio live chat: homepage and Contact Us only (src/components/common/TidioChat.tsx sets data-chat-widgets) */
+html:not([data-chat-widgets]) #tidio-chat { display: none !important; }
