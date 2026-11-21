@@ -6,6 +6,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { TidioChat } from './components/common/TidioChat';
+import { MetaPixel } from './components/common/MetaPixel';
 import { RouteSeo } from './components/seo/RouteSeo';
 import { NotFoundPage } from './pages/public/NotFoundPage';
 import { WhatsAppButton } from './components/common/WhatsAppButton';
@@ -100,6 +101,7 @@ export default function App() {
           <BrowserRouter>
             <ScrollToTop />
             <RouteSeo />
+            <MetaPixel />
             <GoogleOneTap />
             <AuthLinkRescue />
             <MaintenanceGate>
