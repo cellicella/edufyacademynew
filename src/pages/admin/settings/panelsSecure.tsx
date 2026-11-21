@@ -4,6 +4,7 @@ import { Card, FieldDef, FieldGrid, Note, PanelHeader, PanelProps, ReauthModal, 
 import { WhatsAppFields } from './panelsBasic';
 import { CredProvider, CredentialView, SettingsApiError, TestStep, settingsAdmin } from '../../../services/settingsAdmin';
 import { useCartWishlist } from '../../../context/CartWishlistContext';
+import { API_BASE_URL } from '../../../services/api';
 
 type Provider = CredProvider;
 type CredAction = 'save' | 'activate' | 'revert';
@@ -209,7 +210,9 @@ const PAYMENT: FieldDef[] = [
 
 export const PaymentPanel: React.FC<PanelProps & { cred?: CredentialView; canEncrypt: boolean; superAdmin: boolean; lastWebhook: { at: string; event: string } | null; onCred: (v: CredentialView) => void }> = ({ value, onSaved, cred, canEncrypt, superAdmin, lastWebhook, onCred }) => {
   const f = useSectionForm('payment', value, onSaved);
-  const webhookUrl = `${window.location.origin.replace(/^http:/, 'https:')}/api/payments/webhook`;
+  // The webhook goes to the API server (e.g. https://api.edufyacademy.com), not the website domain
+  const apiBase = /^https?:\/\//i.test(API_BASE_URL) ? API_BASE_URL : `${window.location.origin}${API_BASE_URL.startsWith('/') ? '' : '/'}${API_BASE_URL}`;
+  const webhookUrl = `${apiBase.replace(/^http:/, 'https:').replace(/\/+$/, '')}/payments/webhook`;
   return (
     <div>
       <PanelHeader title="Payment gateway (Razorpay)" description="Payment status, credentials and a full server-side test. Secrets never reach the browser or the app." />
@@ -238,8 +241,8 @@ export const PaymentPanel: React.FC<PanelProps & { cred?: CredentialView; canEnc
         )}
         <Card title="Webhook" description="Backup for enrollment if a student closes the browser right after paying.">
           <div className="text-[14.5px] text-[#334155] space-y-1.5">
-            <div>URL: <code className="px-1.5 py-0.5 rounded bg-[#F1F5F9]">{webhookUrl}</code> <span className="text-[#64748B]">(use your API address if the API runs on a separate domain)</span></div>
-            <div>Events: <code>payment.captured</code>, <code>order.paid</code></div>
+            <div>URL: <code className="px-1.5 py-0.5 rounded bg-[#F1F5F9] break-all">{webhookUrl}</code></div>
+            <div>Events: <code>payment.captured</code>, <code>order.paid</code>, <code>refund.processed</code></div>
             <div>Last verified webhook: {lastWebhook ? <strong className="text-emerald-700">{fmtWhen(lastWebhook.at)} ({lastWebhook.event})</strong> : <span className="text-amber-700">none received yet</span>}</div>
           </div>
         </Card>
