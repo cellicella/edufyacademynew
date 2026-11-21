@@ -5,6 +5,7 @@ import { Course, Lesson, CourseSection, Certificate } from '../../types';
 import { useCourseProgress } from '../../context/CourseProgressContext';
 import { AdiloPlayer } from '../../components/student/AdiloPlayer';
 import { useCartWishlist } from '../../context/CartWishlistContext';
+import { useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
 import { EdufyLogo } from '../../components/common/EdufyLogo';
 import {
   Play,
@@ -46,7 +47,8 @@ export const LearningPlayerPage: React.FC = () => {
   const [showCertModal, setShowCertModal] = useState(false);
   const navigate = useNavigate();
 
-  const { isEnrolled, initiateCourseEnrollment, isProcessingPayment, showToast } = useCartWishlist();
+  const { isEnrolled, isProcessingPayment, showToast } = useCartWishlist();
+  const startPurchase = useStartCoursePurchase();
 
   const {
     isLessonCompleted,
@@ -214,7 +216,7 @@ export const LearningPlayerPage: React.FC = () => {
                   This lecture is exclusive to enrolled learners. Unlock instant lifetime access to all {course.totalLessons} curriculum lectures, interactive quizzes, and verifiable credentials.
                 </p>
                 <button
-                  onClick={() => initiateCourseEnrollment(course)}
+                  onClick={() => startPurchase(course)}
                   disabled={isProcessingPayment}
                   className="px-6 py-3 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors shadow-lg flex items-center justify-center gap-2 mx-auto"
                 >

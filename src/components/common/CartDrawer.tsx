@@ -1,5 +1,7 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useGuestRedirect, useResumePurchase } from '../../hooks/usePurchaseFlow';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { useSiteSettings } from '../../context/SettingsContext';
 import {
@@ -29,10 +31,29 @@ export const CartDrawer: React.FC = () => {
   const gateway = settings.payment.displayName || 'Razorpay';
   const paymentsOff = settings.payment.enabled === false;
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { currentUser } = useAuth();
+  const toSignIn = useGuestRedirect();
+
+  // Guests sign in first and come back to this page (?checkout=cart) to continue the cart checkout once
+  useResumePurchase(
+    'cart',
+    'cart',
+    async () => {
+      setIsCartOpen(true);
+      return initiateCartCheckout();
+    },
+    () => navigate('/student/courses')
+  );
 
   if (!isCartOpen) return null;
 
   const handleCheckout = async () => {
+    if (!currentUser) {
+      setIsCartOpen(false);
+      toSignIn('cart', 'cart', pathname);
+      return;
+    }
     const success = await initiateCartCheckout();
     if (success) {
       navigate('/student/courses');

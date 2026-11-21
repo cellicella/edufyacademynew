@@ -4,11 +4,13 @@ import { ArrowRight, Loader2, PlayCircle } from 'lucide-react';
 import { Course } from '../../types';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { calculateDiscountPercent } from '../../utils/courseUtils';
+import { useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
 
 /* -------------------------------------------------------------------------------------------------
  * Purchase calls-to-action. Every button uses the existing enrollment flow (CartWishlistContext →
- * initiateCourseEnrollment: sign-in check, server order, Razorpay checkout, server verification, free
- * enrollment). Enrolled students see "Continue learning"; free courses show "Enroll for free".
+ * initiateCourseEnrollment: server order, Razorpay checkout, server verification, free enrollment).
+ * Guests are sent to the sign-in page and return to the course to continue (hooks/usePurchaseFlow.ts).
+ * Enrolled students see "Continue learning"; free courses show "Enroll for free".
  * ---------------------------------------------------------------------------------------------- */
 
 type PurchaseCourse = Pick<Course, 'id' | 'title' | 'price' | 'originalPrice'> & { isFree?: boolean };
@@ -17,7 +19,8 @@ export const isFreeCourse = (c: PurchaseCourse) => c.price <= 0 || !!c.isFree;
 const inr = (v: number) => `₹${v.toLocaleString('en-IN')}`;
 
 export function useCoursePurchase(course: PurchaseCourse) {
-  const { initiateCourseEnrollment, isEnrolled, isProcessingPayment } = useCartWishlist();
+  const { isEnrolled, isProcessingPayment } = useCartWishlist();
+  const startPurchase = useStartCoursePurchase();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const enrolled = isEnrolled(course.id);
@@ -30,12 +33,12 @@ export function useCoursePurchase(course: PurchaseCourse) {
     }
     setBusy(true);
     try {
-      const ok = await initiateCourseEnrollment(course);
+      const ok = await startPurchase(course);
       if (ok) navigate(`/learn/${course.id}`);
     } finally {
       setBusy(false);
     }
-  }, [enrolled, course, initiateCourseEnrollment, navigate]);
+  }, [enrolled, course, startPurchase, navigate]);
 
   return { enrolled, free, busy: busy && isProcessingPayment, disabled: isProcessingPayment, run };
 }

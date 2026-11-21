@@ -7,6 +7,7 @@ import { UserRole } from '../../types';
 import { Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useSiteSettings } from '../../context/SettingsContext';
 import { AuthDivider, GoogleSignInButton } from '../../components/auth/GoogleSignIn';
+import { safeInternalPath } from '../../lib/purchaseIntent';
 
 export const RegisterPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -23,7 +24,7 @@ export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
 
   const rawRedirect = searchParams.get('redirect');
-  const redirectUrl = rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : null;
+  const redirectUrl = safeInternalPath(rawRedirect, window.location.origin);
   const { settings } = useSiteSettings();
   const showGoogle = settings.auth.googleEnabled;
   const showForm = settings.auth.emailPasswordEnabled || !showGoogle;

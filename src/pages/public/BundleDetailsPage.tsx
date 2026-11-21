@@ -9,6 +9,7 @@ import { formatPrice } from '../../components/common/CourseCard';
 import { formatDuration } from '../../utils/courseUtils';
 import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 import { displayInstructor } from '../../config/leadInstructor';
+import { useGuestRedirect, useResumePurchase } from '../../hooks/usePurchaseFlow';
 
 export const BundleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,12 @@ export const BundleDetailsPage: React.FC = () => {
     if (!id) return;
     bundleService.getBundle(id).then(setBundle).finally(() => setLoading(false));
   }, [id]);
+
+  // Guests sign in first and come back here (?buy=1) to continue the bundle purchase once
+  const toSignIn = useGuestRedirect();
+  const purchaseBundle = async () =>
+    bundle ? initiateBundlePurchase({ id: bundle.id, title: bundle.title, price: bundle.price, courseIds: bundle.courses.map((c) => c.id) }) : false;
+  useResumePurchase('bundle', bundle?.slug, purchaseBundle, () => navigate('/student/courses'));
 
   if (loading) return <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-24 text-[#64748B]">Loading bundle…</div>;
   if (!bundle)
@@ -39,10 +46,10 @@ export const BundleDetailsPage: React.FC = () => {
 
   const buy = async () => {
     if (!currentUser) {
-      navigate(`/login?redirect=${encodeURIComponent(`/bundles/${bundle.slug}`)}`);
+      toSignIn('bundle', bundle.slug);
       return;
     }
-    const ok = await initiateBundlePurchase({ id: bundle.id, title: bundle.title, price: bundle.price, courseIds: bundle.courses.map((c) => c.id) });
+    const ok = await purchaseBundle();
     if (ok) navigate('/student/courses');
   };
 

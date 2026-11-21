@@ -7,6 +7,7 @@ import { EdufyLogo } from '../../components/common/EdufyLogo';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { isMissingPkceVerifier } from '../../lib/authLinks';
+import { safeInternalPath } from '../../lib/purchaseIntent';
 
 type State =
   | { kind: 'working' }
@@ -16,7 +17,7 @@ type State =
 const OTP_TYPES: EmailOtpType[] = ['signup', 'email', 'invite', 'magiclink', 'recovery', 'email_change'];
 
 /** Only same-site paths may be used as the post-verification destination. */
-const safeNext = (v: string | null) => (v && v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/auth/') ? v : null);
+const safeNext = (v: string | null) => safeInternalPath(v, window.location.origin);
 
 /**
  * Landing page for links in Supabase emails (sign-up confirmation, magic links).

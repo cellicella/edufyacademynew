@@ -6,6 +6,7 @@ import { EdufyLogo } from '../../components/common/EdufyLogo';
 import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { useSiteSettings } from '../../context/SettingsContext';
 import { AuthDivider, GoogleSignInButton } from '../../components/auth/GoogleSignIn';
+import { safeInternalPath } from '../../lib/purchaseIntent';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -22,7 +23,8 @@ export const LoginPage: React.FC = () => {
 
   const rawRedirect = searchParams.get('redirect');
   // Only same-site paths (no open redirects)
-  const redirectUrl = rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : null;
+  const redirectUrl = safeInternalPath(rawRedirect, window.location.origin);
+  const continuingPurchase = !!redirectUrl && /[?&](enroll=1|buy=1|checkout=cart)(&|$)/.test(redirectUrl);
   // ?method=email always shows the email form, so administrators can never be locked out by login settings
   const forceEmail = searchParams.get('method') === 'email';
   const showGoogle = auth.googleEnabled;
@@ -112,7 +114,7 @@ export const LoginPage: React.FC = () => {
 
           {redirectUrl && (
             <div className="p-2.5 text-xs bg-blue-50 text-blue-800 border border-blue-200 rounded-lg">
-              Please sign in to continue to your requested page.
+              {continuingPurchase ? 'Sign in or create an account to continue your enrollment. You’ll return to your course right after.' : 'Please sign in to continue to your requested page.'}
             </div>
           )}
 

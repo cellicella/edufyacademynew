@@ -29,6 +29,7 @@ import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
 import { CoursePurchaseButton, CtaStrip, PriceInline, StickyPurchaseBar } from '../../components/course/CoursePurchase';
 import { InstructorSpotlight } from '../../components/course/InstructorSpotlight';
 import { displayInstructor } from '../../config/leadInstructor';
+import { useResumePurchase, useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
 
 export const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +59,15 @@ export const CourseDetailsPage: React.FC = () => {
   } = useCartWishlist();
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
+
+  // Guests are sent to sign in and come back here (?enroll=1) to continue the purchase once
+  const startPurchase = useStartCoursePurchase();
+  useResumePurchase(
+    'course',
+    course?.id,
+    () => (course ? initiateCourseEnrollment(course) : Promise.resolve(false)),
+    () => course && navigate(`/learn/${course.id}`)
+  );
 
 
   useEffect(() => {
@@ -120,7 +130,7 @@ export const CourseDetailsPage: React.FC = () => {
 
   const handleEnrollClick = async () => {
     if (!course) return;
-    const success = await initiateCourseEnrollment(course);
+    const success = await startPurchase(course);
     if (success) {
       navigate(`/learn/${course.id}`);
     }
