@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { courseService } from '../../services/api';
 import { Course } from '../../types';
@@ -26,6 +26,9 @@ import {
   X,
 } from 'lucide-react';
 import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
+import { CoursePurchaseButton, CtaStrip, PriceInline, StickyPurchaseBar } from '../../components/course/CoursePurchase';
+import { InstructorSpotlight } from '../../components/course/InstructorSpotlight';
+import { displayInstructor } from '../../config/leadInstructor';
 
 export const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +58,25 @@ export const CourseDetailsPage: React.FC = () => {
   } = useCartWishlist();
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
+
+  // Desktop sticky bar: shown only while neither the hero CTA nor the main purchase buttons are on screen
+  const heroCtaRef = useRef<HTMLDivElement>(null);
+  const mainCtaRef = useRef<HTMLDivElement>(null);
+  const [ctaOnScreen, setCtaOnScreen] = useState(true);
+  useEffect(() => {
+    const targets = [heroCtaRef.current, mainCtaRef.current].filter((el): el is HTMLDivElement => !!el);
+    if (!targets.length || typeof IntersectionObserver === 'undefined') return;
+    const visible = new Map<Element, boolean>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => visible.set(e.target, e.isIntersecting));
+        setCtaOnScreen([...visible.values()].some(Boolean));
+      },
+      { threshold: 0.1 }
+    );
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, [course?.id, loading]);
 
   useEffect(() => {
     if (!id) return;
@@ -111,6 +133,7 @@ export const CourseDetailsPage: React.FC = () => {
 
   const isFavorited = isInWishlist(course.id);
   const enrolled = isEnrolled(course.id);
+  const instructor = displayInstructor(course.instructor);
   const discountPercent = calculateDiscountPercent(course.price, course.originalPrice);
 
   const handleEnrollClick = async () => {
@@ -171,10 +194,10 @@ export const CourseDetailsPage: React.FC = () => {
 
               <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-5">
                 <div className="flex items-center gap-3">
-                  <img src={cdnAvatar(course.instructor.avatar, 48)} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
+                  <img src={cdnAvatar(instructor.avatar, 48)} alt="" width={48} height={48} referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
                   <div className="leading-tight">
-                    <div className="text-[13px] text-[#64748B]">Instructor</div>
-                    <div className="text-[17px] font-semibold text-[#111827]">{course.instructor.name}</div>
+                    <div className="text-[13px] text-[#64748B]">{instructor.isLead ? instructor.title : 'Instructor'}</div>
+                    <div className="text-[17px] font-semibold text-[#111827]">{instructor.name}</div>
                   </div>
                 </div>
                 <CourseRating course={course} />
@@ -196,6 +219,17 @@ export const CourseDetailsPage: React.FC = () => {
                   </div>
                 ))}
               </dl>
+
+              {/* Purchase — top of the page */}
+              <div ref={heroCtaRef} className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+                {!enrolled && <PriceInline course={course} />}
+                <CoursePurchaseButton course={course} />
+                {!enrolled && hasPreview && (
+                  <button type="button" onClick={() => setPreviewOpen(true)} className="ed-btn ed-btn-outlined">
+                    <Play className="w-4 h-4" /> Watch preview
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="lg:col-span-5">
@@ -327,6 +361,12 @@ export const CourseDetailsPage: React.FC = () => {
               </div>
             </section>
 
+            <CtaStrip
+              course={course}
+              heading="Ready to start learning?"
+              text={`${course.totalLessons} lessons · ${formatDuration(course.durationHours)} of video · learn at your own pace`}
+            />
+
             {/* Requirements & Target Audience */}
             <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
               <div>
@@ -352,36 +392,8 @@ export const CourseDetailsPage: React.FC = () => {
               </div>
             </section>
 
-            {/* Instructor Bio Box */}
-            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0]">
-              <h2 className="font-display text-xl font-bold text-[#111827] mb-4">
-                Instructor
-              </h2>
-              <div className="flex flex-col sm:flex-row items-start gap-4">
-                <img
-                  src={course.instructor.avatar}
-                  alt={course.instructor.name}
-                  referrerPolicy="no-referrer"
-                  className="w-16 h-16 rounded-full object-cover border border-[#E2E8F0]"
-                />
-                <div className="space-y-1.5 flex-1">
-                  <h3 className="font-display text-base font-bold text-[#111827]">
-                    {course.instructor.name}
-                  </h3>
-                  <div className="text-xs text-[#004AAD] font-semibold">{course.instructor.title}</div>
-                  <div className="flex items-center gap-3 text-xs text-[#64748B] pt-1">
-                    <span className="tabular-nums font-medium">{course.instructor.rating} Rating</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="tabular-nums font-medium">{course.instructor.totalStudents.toLocaleString()} Students</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="tabular-nums font-medium">{course.instructor.coursesCount} Courses</span>
-                  </div>
-                  <p className="text-xs text-[#64748B] pt-2 leading-relaxed">
-                    {course.instructor.bio}
-                  </p>
-                </div>
-              </div>
-            </section>
+            {/* Instructor */}
+            <InstructorSpotlight course={course} />
 
             {/* Reviews Section */}
             <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
@@ -425,6 +437,7 @@ export const CourseDetailsPage: React.FC = () => {
                 </div>
               )}
             </section>
+            {courseReviews.length > 0 && <CtaStrip course={course} heading="Join the learners taking this course" />}
           </div>
 
           {/* Right Column: Sticky Enrollment Box */}
@@ -475,7 +488,7 @@ export const CourseDetailsPage: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-2.5">
+              <div ref={mainCtaRef} className="space-y-2.5">
                 {enrolled ? (
                   <button
                     onClick={() => navigate(`/learn/${course.id}`)}
@@ -565,7 +578,25 @@ export const CourseDetailsPage: React.FC = () => {
             </div>
           </section>
         )}
+
+        {/* 4. Final call to action */}
+        <section aria-label="Enroll in this course" className="mt-16 rounded-[28px] bg-gradient-to-br from-[#004AAD] via-[#5271FF] to-[#5E17EB] text-white px-6 py-10 sm:px-12 sm:py-12 flex flex-col lg:flex-row lg:items-center gap-8">
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-white/75">{enrolled ? 'Continue where you left off' : 'Start learning today'}</p>
+            <h2 className="mt-2 font-display text-[26px] sm:text-[32px] font-extrabold leading-tight">{course.title}</h2>
+            <p className="mt-3 text-[16px] text-white/85">
+              {course.totalLessons} lessons · {formatDuration(course.durationHours)}
+              {course.certificateOffered ? ' · Certificate of completion' : ''}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end gap-4">
+            {!enrolled && <PriceInline course={course} tone="dark" />}
+            <CoursePurchaseButton course={course} label="Enroll now" variant="light" />
+          </div>
+        </section>
       </div>
+
+      <StickyPurchaseBar course={course} desktopVisible={!ctaOnScreen} />
     </div>
   );
 };

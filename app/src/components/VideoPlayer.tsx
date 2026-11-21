@@ -12,6 +12,8 @@ export interface PlayerEvent {
 }
 
 const SLOW_MS = 20000;
+const SPINNER_MAX_MS = 15000;
+const PRECONNECT = ['https://adilo.bigcommand.com', 'https://stream.adilo.com'];
 
 /**
  * Responsive 16:9 player. Embedded players (Adilo / YouTube / Vimeo) run inside a small HTML page
@@ -29,6 +31,24 @@ export const VideoPlayer: React.FC<{ video: ResolvedVideo; title: string; onEven
   const readyRef = useRef(false);
   const isAdilo = video.src.startsWith(`${ADILO_ORIGIN}/`);
   const baseUrl = config.webUrl || 'https://localhost';
+  // Load timeline (development builds log it): WebView page → embedded player page → player ready → playing
+  const t0 = useRef(Date.now());
+  const marks = useRef<Record<string, number>>({});
+  const mark = (name: string) => {
+    if (marks.current[name] !== undefined) return;
+    marks.current[name] = Date.now() - t0.current;
+    if (__DEV__) console.log(`[video] ${name} +${marks.current[name]}ms (${isAdilo ? 'adilo' : video.kind})`);
+  };
+  useEffect(() => {
+    t0.current = Date.now();
+    marks.current = {};
+  }, [video.src, attempt]);
+
+  // The spinner stays until the embedded player page has loaded (not just the small wrapper page)
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), SPINNER_MAX_MS);
+    return () => clearTimeout(t);
+  }, [video.src, attempt]);
 
   // If the Adilo player never reports "ready" (blocked domain, poor network) offer a reload
   useEffect(() => {
@@ -39,13 +59,15 @@ export const VideoPlayer: React.FC<{ video: ResolvedVideo; title: string; onEven
     return () => clearTimeout(t);
   }, [video.src, attempt, isAdilo]);
 
+  const { kind, src: videoSrc } = video;
   const html = useMemo(() => {
-    const src = escapeAttr(video.src);
+    const src = escapeAttr(videoSrc);
     const media =
-      video.kind === 'iframe'
+      kind === 'iframe'
         ? `<iframe id="p" src="${src}" title="${escapeAttr(title)}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen webkitallowfullscreen mozallowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
         : `<video id="p" src="${src}" controls playsinline ${autoPlay ? 'autoplay' : ''} controlsList="nodownload"></video>`;
     return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+${kind === 'iframe' ? PRECONNECT.map((o) => `<link rel="preconnect" href="${o}" crossorigin><link rel="dns-prefetch" href="${o}">`).join('') : ''}
 <style>html,body{margin:0;padding:0;background:#000;height:100%;overflow:hidden}iframe,video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}</style></head>
 <body>${media}
 <script>
@@ -56,6 +78,8 @@ export const VideoPlayer: React.FC<{ video: ResolvedVideo; title: string; onEven
     var d=e.data; if(typeof d==='string'){try{d=JSON.parse(d)}catch(_){return}}
     if(d&&typeof d.eventName==='string')send(d);
   });
+  var f=document.querySelector('iframe');
+  if(f)f.addEventListener('load',function(){send({eventName:'__frameLoaded'})});
   var v=document.querySelector('video');
   if(v){
     v.addEventListener('play',function(){send({eventName:'play'})});
@@ -67,7 +91,7 @@ export const VideoPlayer: React.FC<{ video: ResolvedVideo; title: string; onEven
   }
 })();
 </script></body></html>`;
-  }, [video, title, autoPlay]);
+  }, [kind, videoSrc, title, autoPlay]);
 
   const reload = () => {
     setFailed(null);
@@ -98,12 +122,25 @@ export const VideoPlayer: React.FC<{ video: ResolvedVideo; title: string; onEven
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={!autoPlay}
           setSupportMultipleWindows={false}
+          // Android: GPU-composited video, normal HTTP caching of the player's scripts, https only
+          androidLayerType="hardware"
+          cacheEnabled
+          cacheMode="LOAD_DEFAULT"
+          mixedContentMode="never"
+          overScrollMode="never"
           onMessage={(e) => {
             try {
               const data = JSON.parse(e.nativeEvent.data);
               if (!data || typeof data.eventName !== 'string') return;
+              if (data.eventName === '__frameLoaded') {
+                mark('player page loaded');
+                setLoading(false);
+                return;
+              }
               if (data.eventName === 'ready' || data.eventName === 'play' || data.eventName === 'currentTime') {
+                mark(data.eventName === 'ready' ? 'player ready' : 'playing');
                 readyRef.current = true;
+                setLoading(false);
                 if (slow) setSlow(false);
               }
               if (data.eventName === 'error') setFailed('This video file could not be played.');
@@ -112,7 +149,10 @@ export const VideoPlayer: React.FC<{ video: ResolvedVideo; title: string; onEven
               /* not a player message */
             }
           }}
-          onLoadEnd={() => setLoading(false)}
+          onLoadEnd={() => {
+            mark('webview page loaded');
+            if (kind !== 'iframe') setLoading(false);
+          }}
           onError={(e) => setFailed(/internet|network|host/i.test(e.nativeEvent?.description || '') ? 'No internet connection. Check your network and reload.' : 'This video could not be loaded.')}
           onHttpError={(e) => e.nativeEvent.statusCode >= 400 && setFailed(`The video page returned an error (${e.nativeEvent.statusCode}).`)}
           onRenderProcessGone={() => setFailed('The video player stopped unexpectedly.')}

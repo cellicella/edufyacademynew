@@ -8,9 +8,9 @@ import * as WebBrowser from 'expo-web-browser';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/context/AuthContext';
-import { useCourse, useIsEnrolled, useProgress } from '@/hooks/queries';
+import { lessonVideoQuery, useCourse, useIsEnrolled, useProgress } from '@/hooks/queries';
 import { useAdiloTracking } from '@/hooks/useAdiloTracking';
-import { getLessonVideo, setLessonComplete, touchLesson } from '@/services/learning';
+import { setLessonComplete, touchLesson } from '@/services/learning';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { Curriculum } from '@/components/Curriculum';
 import { Button, ErrorState, Loading, ProgressBar } from '@/components/ui';
@@ -20,7 +20,7 @@ import { colors, fonts, gradients, radius, type } from '@/theme';
 import { formatMinutes } from '@/utils/format';
 import { resolveVideo } from '@/utils/video';
 import { isAdiloLesson } from '@/logic/courses';
-import { canOpenLesson, neighbours, pickStartLesson } from '@/logic/learningNav';
+import { canOpenLesson, hasFullAccess, neighbours, pickStartLesson } from '@/logic/learningNav';
 import { AfterEnd, decideAfterEnd } from '@/logic/autoplay';
 import { isCourseComplete } from '@/logic/certificates';
 import { useAutoplayPref } from '@/hooks/useAutoplayPref';
@@ -38,7 +38,9 @@ export default function LearnScreen() {
   const uid = session?.user.id;
   const course = useCourse(courseId);
   const { enrolled, isLoading: enrolLoading } = useIsEnrolled(course.data?.id);
-  const progress = useProgress(course.data && enrolled ? [course.data.id] : []);
+  // Progress is requested together with the course (not after it): the course id is already known from the link
+  const progressCourseId = course.data?.id || courseId;
+  const progress = useProgress(uid && progressCourseId ? [progressCourseId] : []);
   const [localDone, setLocalDone] = useState<Set<string>>(new Set());
   const [lessonId, setLessonId] = useState<string | null>(null);
   const [marking, setMarking] = useState(false);
@@ -47,21 +49,24 @@ export default function LearnScreen() {
   const lessons = useMemo(() => (course.data?.sections || []).flatMap((s) => s.lessons), [course.data]);
   const p = course.data ? progress.data?.[course.data.id] : undefined;
   const completed = useMemo(() => new Set([...(p?.completedLessonIds || []), ...localDone]), [p, localDone]);
-  const canOpen = useCallback((l: Lesson) => canOpenLesson(l, enrolled), [enrolled]);
+  // The database (row-level security) only returns full non-preview lessons to students with access, so the
+  // player does not have to wait for the enrollment list. Progress writes still use the real enrollment.
+  const access = useMemo(() => enrolled || hasFullAccess(lessons), [enrolled, lessons]);
+  const canOpen = useCallback((l: Lesson) => canOpenLesson(l, access), [access]);
 
   // Choose the starting lesson once data is ready (see logic/learningNav.ts)
   useEffect(() => {
-    if (lessonId || !lessons.length || enrolLoading || (enrolled && progress.isLoading)) return;
-    const start = pickStartLesson(lessons, { requestedId: lessonParam, lastLessonId: p?.lastLessonId, completed, enrolled });
+    if (lessonId || !lessons.length || (enrolLoading && !access) || (access && progress.isLoading)) return;
+    const start = pickStartLesson(lessons, { requestedId: lessonParam, lastLessonId: p?.lastLessonId, completed, enrolled: access });
     if (start) setLessonId(start.id);
-  }, [lessons, lessonParam, p, completed, enrolled, enrolLoading, progress.isLoading, lessonId]);
+  }, [lessons, lessonParam, p, completed, access, enrolLoading, progress.isLoading, lessonId]);
 
   // A different lesson requested via params (e.g. from course details) while the screen is open
   useEffect(() => {
     if (lessonParam && lessons.some((l) => l.id === lessonParam)) setLessonId(lessonParam);
   }, [lessonParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const nav = neighbours(lessons, lessonId, enrolled);
+  const nav = neighbours(lessons, lessonId, access);
   const idx = nav.index;
   const lesson = idx >= 0 ? lessons[idx] : null;
   const prev = nav.prev;
@@ -73,14 +78,24 @@ export default function LearnScreen() {
     if (uid && lesson && enrolled && openable && course.data) touchLesson(uid, course.data.id, lesson.id).catch((e) => __DEV__ && console.warn('[learn] could not record last lesson:', e?.message));
   }, [uid, lesson?.id, enrolled, openable, course.data?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Adilo player link from the existing enrollment-checked endpoint
-  const video = useQuery({
-    queryKey: ['lesson-video', lesson?.id, uid],
-    queryFn: ({ signal }) => getLessonVideo(lesson!.id, signal),
-    enabled: !!lesson && openable && isAdilo(lesson),
-    staleTime: 10 * 60_000,
-    retry: 1,
-  });
+  // Adilo: the player starts straight away from the lesson's player link (returned by the database only to
+  // students with access). The existing enrollment-checked endpoint runs in parallel for the resume position
+  // and verified watch time; if it denies access, the player is removed.
+  const adiloActive = !!lesson && openable && isAdilo(lesson);
+  const video = useQuery({ ...lessonVideoQuery(lesson?.id || '', uid), enabled: adiloActive });
+  const directSrc = useMemo(() => (adiloActive ? resolveVideo(lesson!.adiloEmbedUrl) : null), [adiloActive, lesson?.adiloEmbedUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  const apiSrc = useMemo(() => (video.data ? resolveVideo(video.data.embedUrl) : null), [video.data?.embedUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  const videoDenied = [403, 404].includes(Number((video.error as { status?: number } | null)?.status));
+  const adiloSrc = videoDenied ? null : directSrc || apiSrc;
+
+  const fileSrc = useMemo(() => (lesson && !isAdilo(lesson) ? resolveVideo(lesson.videoUrl) : null), [lesson?.id, lesson?.videoUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Warm the next lesson's video details while this one plays
+  useEffect(() => {
+    if (!next || !uid || !canOpen(next) || !isAdilo(next)) return;
+    const t = setTimeout(() => qc.prefetchQuery(lessonVideoQuery(next.id, uid)).catch(() => undefined), 4000);
+    return () => clearTimeout(t);
+  }, [next?.id, uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
@@ -205,21 +220,21 @@ export default function LearnScreen() {
       </LinearGradient>
     );
   } else if (isAdilo(lesson)) {
-    const src = video.data ? resolveVideo(video.data.embedUrl) : null;
-    media = video.isLoading ? (
+    const src = adiloSrc;
+    media = src ? (
+      <VideoPlayer key={lesson.id} video={src} title={lesson.title} onEvent={onPlayerEvent} />
+    ) : video.isLoading ? (
       <View style={styles.mediaBox}><ActivityIndicator color={colors.white} /><Text style={styles.mediaBody}>Loading video…</Text></View>
-    ) : video.error || !src ? (
+    ) : (
       <View style={styles.mediaBox}>
         <Ionicons name="alert-circle-outline" size={34} color="#FBBF24" />
         <Text style={styles.mediaTitle}>Video unavailable</Text>
         <Text style={styles.mediaBody}>{video.error ? friendlyMessage(video.error) : 'This lesson has no playable video link yet.'}</Text>
         {!!video.error && <Button title="Retry" size="sm" variant="secondary" onPress={() => video.refetch()} />}
       </View>
-    ) : (
-      <VideoPlayer key={lesson.id} video={src} title={lesson.title} onEvent={onPlayerEvent} />
     );
   } else {
-    const src = resolveVideo(lesson.videoUrl);
+    const src = fileSrc;
     media = src ? (
       <VideoPlayer key={lesson.id} video={src} title={lesson.title} onEvent={src.kind === 'file' ? onFileVideoEvent : undefined} />
     ) : (

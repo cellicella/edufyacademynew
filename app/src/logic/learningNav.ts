@@ -4,6 +4,13 @@ import type { Lesson } from '../lib/types';
 export const canOpenLesson = (l: Lesson, enrolled: boolean) => l.accessible && (enrolled || l.isFreePreview);
 
 /**
+ * True when the database returned full content for a lesson that is not a free preview — row-level security
+ * only does that for students with access (or the course staff), so the player can open without waiting for
+ * the enrollment list.
+ */
+export const hasFullAccess = (lessons: Lesson[]) => lessons.some((l) => l.accessible && !l.isFreePreview);
+
+/**
  * Starting lesson: explicit lesson → resume point (the last opened lesson if unfinished,
  * otherwise the next unfinished one after it) → first unfinished openable → first openable → first.
  */

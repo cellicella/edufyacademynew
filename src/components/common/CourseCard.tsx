@@ -5,6 +5,8 @@ import { Star, Heart, BookOpen, Check, ArrowUpRight, Clock, PlayCircle } from 'l
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { formatDuration, calculateDiscountPercent } from '../../utils/courseUtils';
 import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
+import { displayInstructor } from '../../config/leadInstructor';
+import { CoursePurchaseButton } from '../course/CoursePurchase';
 
 interface CourseCardProps {
   course: Course;
@@ -70,6 +72,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   const enrolled = isEnrolled(course.id);
   const discountPercent = calculateDiscountPercent(course.price, course.originalPrice);
   const href = `/courses/${course.id}`;
+  const instructor = displayInstructor(course.instructor);
 
   const wishlistButton = (
     <button
@@ -105,14 +108,17 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   const instructorRow = (
     <div className="flex items-center gap-2.5 min-w-0">
       <img
-        src={cdnAvatar(course.instructor.avatar, 32)}
+        src={cdnAvatar(instructor.avatar, 32)}
         alt=""
+        width={32}
+        height={32}
+        loading="lazy"
         referrerPolicy="no-referrer"
         className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm shrink-0"
       />
       <div className="min-w-0 leading-tight">
-        <div className="text-[15px] font-semibold text-[#111827] truncate">{course.instructor.name}</div>
-        {course.instructor.title && <div className="text-[13px] text-[#64748B] truncate">{course.instructor.title}</div>}
+        <div className="text-[15px] font-semibold text-[#111827] truncate">{instructor.name}</div>
+        {instructor.title && <div className="text-[13px] text-[#64748B] truncate">{instructor.title}</div>}
       </div>
     </div>
   );
@@ -161,9 +167,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
                   <Check className="w-4 h-4" /> Continue
                 </button>
               ) : (
-                <Link to={href} className="ed-btn ed-btn-tonal ed-btn-sm">
-                  View course
-                </Link>
+                <>
+                  <Link to={href} className="ed-btn ed-btn-text ed-btn-sm">
+                    View course
+                  </Link>
+                  <CoursePurchaseButton course={course} size="sm" />
+                </>
               )}
             </div>
           </div>
@@ -211,13 +220,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
               <ArrowUpRight className="w-5 h-5" />
             </button>
           ) : (
-            <Link
-              to={href}
-              className="w-12 h-12 shrink-0 rounded-full bg-[#E8EFFB] text-[#004AAD] flex items-center justify-center transition-colors duration-300 group-hover:bg-[#004AAD] group-hover:text-white"
-              aria-label={`View ${course.title}`}
-            >
-              <ArrowUpRight className="w-5 h-5 transition-transform duration-300 group-hover:rotate-45" />
-            </Link>
+            <CoursePurchaseButton course={course} size="sm" variant="tonal" className="shrink-0 !px-4" />
           )}
         </div>
       </div>

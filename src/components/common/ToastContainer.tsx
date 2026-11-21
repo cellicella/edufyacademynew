@@ -10,7 +10,8 @@ export const ToastContainer: React.FC = () => {
   return (
     <div
       aria-live="polite"
-      className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
+      className="fixed right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
+      style={{ bottom: 'calc(1.25rem + var(--ed-bottom-bar, 0px))' }}
     >
       {toasts.map((toast) => (
         <div

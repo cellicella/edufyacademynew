@@ -21,6 +21,8 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { cdnAvatar, cdnImage, cdnSrcSet } from '../../lib/cdnImage';
+import { displayInstructor } from '../../config/leadInstructor';
+import { CoursePurchaseButton } from '../../components/course/CoursePurchase';
 
 /* Authentic educational photography (Unsplash) */
 const PHOTOS = {
@@ -268,21 +270,23 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {featuredCourse && (
-                  <Link
-                    to={`/courses/${featuredCourse.id}`}
-                    className="group absolute -bottom-10 left-4 right-4 sm:left-auto sm:-right-4 lg:-right-8 sm:w-[360px] bg-white rounded-[24px] p-5 shadow-xl hover:shadow-2xl transition-shadow"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#5E17EB]">Featured course</span>
-                      <ArrowUpRight className="w-5 h-5 text-[#94A3B8] group-hover:text-[#004AAD] group-hover:rotate-45 transition" />
-                    </div>
-                    <div className="font-display text-[19px] font-bold leading-snug text-[#111827] line-clamp-2">{featuredCourse.title}</div>
-                    <div className="mt-2 text-[15px] text-[#64748B] truncate">{featuredCourse.instructor.name}</div>
+                  <div className="group absolute -bottom-10 left-4 right-4 sm:left-auto sm:-right-4 lg:-right-8 sm:w-[360px] bg-white rounded-[24px] p-5 shadow-xl hover:shadow-2xl transition-shadow">
+                    <Link to={`/courses/${featuredCourse.id}`} className="block">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#5E17EB]">Featured course</span>
+                        <ArrowUpRight className="w-5 h-5 text-[#94A3B8] group-hover:text-[#004AAD] group-hover:rotate-45 transition" />
+                      </div>
+                      <div className="font-display text-[19px] font-bold leading-snug text-[#111827] line-clamp-2">{featuredCourse.title}</div>
+                      <div className="mt-2 text-[15px] text-[#64748B] truncate">{displayInstructor(featuredCourse.instructor).name}</div>
+                    </Link>
                     <div className="mt-4 pt-4 border-t border-[#EEF2F7] flex items-center justify-between gap-3">
-                      <CourseRating course={featuredCourse} />
-                      <span className="font-display text-[18px] font-extrabold text-[#111827]">{formatPrice(featuredCourse.price)}</span>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <CourseRating course={featuredCourse} />
+                        <span className="font-display text-[18px] font-extrabold text-[#111827]">{formatPrice(featuredCourse.price)}</span>
+                      </div>
+                      <CoursePurchaseButton course={featuredCourse} size="sm" className="shrink-0" />
                     </div>
-                  </Link>
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -459,8 +463,8 @@ export const HomePage: React.FC = () => {
                   )}
                   <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
                     <div className="flex items-center gap-2.5">
-                      <img src={cdnAvatar(editorsPicks[0].instructor.avatar, 36)} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover ring-2 ring-white/40" />
-                      <span className="text-[16px] font-semibold">{editorsPicks[0].instructor.name}</span>
+                      <img src={cdnAvatar(displayInstructor(editorsPicks[0].instructor).avatar, 36)} alt="" width={36} height={36} referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover ring-2 ring-white/40" />
+                      <span className="text-[16px] font-semibold">{displayInstructor(editorsPicks[0].instructor).name}</span>
                     </div>
                     <CourseRating course={editorsPicks[0]} tone="dark" />
                     <span className="font-display text-[22px] font-extrabold">{formatPrice(editorsPicks[0].price)}</span>
@@ -486,7 +490,7 @@ export const HomePage: React.FC = () => {
                         {course.title}
                       </h3>
                       <div className="mt-auto pt-3 flex items-center justify-between gap-2">
-                        <span className="text-[15px] text-[#64748B] truncate">{course.instructor.name}</span>
+                        <span className="text-[15px] text-[#64748B] truncate">{displayInstructor(course.instructor).name}</span>
                         <span className="font-display text-[17px] font-extrabold text-[#111827] shrink-0">{formatPrice(course.price)}</span>
                       </div>
                     </div>

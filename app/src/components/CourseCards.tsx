@@ -135,7 +135,7 @@ export const LearningCard = React.memo(function LearningCard({ item, compact }: 
   const prefetch = usePrefetchCourse();
   return (
     <Pressable
-      onPressIn={() => prefetch(course.id)}
+      onPressIn={() => prefetch(course.id, progress.lastLessonId)}
       onPress={() => router.push(`/learn/${course.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`${course.title}, ${progress.percent}% complete`}

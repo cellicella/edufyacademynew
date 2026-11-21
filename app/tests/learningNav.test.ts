@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canOpenLesson, neighbours, pickStartLesson } from '../src/logic/learningNav';
+import { canOpenLesson, hasFullAccess, neighbours, pickStartLesson } from '../src/logic/learningNav';
 
 const L = (id: string, o: Partial<any> = {}) => ({
   id, sectionId: 's', title: id, durationMinutes: 5, type: 'video', order: 0, isFreePreview: false, accessible: true,
@@ -40,4 +40,13 @@ test('prev/next skip locked lessons; empty course is safe', () => {
   assert.equal(n.next?.id, 'c');
   assert.equal(neighbours(ls, 'c', true).prev?.id, 'a');
   assert.equal(pickStartLesson([], { completed: new Set(), enrolled: true }), null);
+});
+
+test('player access without the enrollment list: only full non-preview lessons count', () => {
+  // Outline-only rows (accessible: false) and free previews never grant access
+  assert.equal(hasFullAccess([L('a', { accessible: false }), L('b', { accessible: true, isFreePreview: true })]), false);
+  assert.equal(hasFullAccess([L('a', { accessible: false }), L('b', { accessible: true })]), true);
+  assert.equal(hasFullAccess([]), false);
+  const locked = L('x', { accessible: false });
+  assert.equal(canOpenLesson(locked, hasFullAccess([locked])), false);
 });

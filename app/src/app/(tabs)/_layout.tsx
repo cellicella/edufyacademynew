@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { colors, fonts } from '@/theme';
+import { WebViewWarmup } from '@/components/WebViewWarmup';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 // react-navigation passes `color` as a ColorValue; the tab tint colours we set are plain strings
@@ -19,6 +20,7 @@ export default function TabsLayout() {
   if (!initializing && !session) return <Redirect href="/(auth)/login" />;
 
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -41,5 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="learning" options={{ title: 'My Learning', tabBarIcon: icon('play-circle', 'play-circle-outline') }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('person-circle', 'person-circle-outline') }} />
     </Tabs>
+    <WebViewWarmup />
+    </>
   );
 }

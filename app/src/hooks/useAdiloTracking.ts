@@ -27,12 +27,20 @@ export function useAdiloTracking(
   onEndedRef.current = onEnded;
   const endedFor = useRef<string | null>(null);
 
+  // New lesson → fresh state. The saved watch time may arrive after playback has started (the player no
+  // longer waits for it), so it is merged in instead of restarting the count.
   useEffect(() => {
     lessonRef.current = lessonId;
     s.current = createWatchState(initial.watched || 0, initial.duration || 0);
     meta.current = { lastSaved: 0, completed: false, saving: false };
     endedFor.current = null;
-  }, [lessonId, initial.watched, initial.duration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId]);
+  useEffect(() => {
+    const st = s.current;
+    if (initial.watched > st.watched) st.watched = initial.watched;
+    if (initial.duration > 0 && !(st.duration > 0)) st.duration = initial.duration;
+  }, [initial.watched, initial.duration]);
 
   const save = useCallback(async (event: string) => {
     const id = lessonRef.current;

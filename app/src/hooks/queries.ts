@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCategoryRows, fetchCourse, fetchPublishedCourses, mergeCategories } from '@/services/courses';
-import { fetchEnrollments, fetchProgress } from '@/services/learning';
+import { fetchEnrollments, fetchProgress, getLessonVideo } from '@/services/learning';
 import { fetchPaymentHistory } from '@/services/payments';
 import { fetchBundle, fetchBundles } from '@/services/bundles';
 import { fetchMyCertificates } from '@/services/certificates';
@@ -44,6 +44,17 @@ const courseQuery = (id: string, uid: string | undefined) => ({
 });
 
 /**
+ * Enrollment-checked Adilo player details for one lesson (existing endpoint GET /api/lessons/:id/video):
+ * resume position, verified watch time and duration. Cached per student so revisiting a lesson is instant.
+ */
+export const lessonVideoQuery = (lessonId: string, uid: string | undefined) => ({
+  queryKey: ['lesson-video', lessonId, uid] as const,
+  queryFn: ({ signal }: { signal?: AbortSignal }) => getLessonVideo(lessonId, signal),
+  staleTime: 2 * 60_000,
+  retry: 1,
+});
+
+/**
  * Starts loading the catalogue (courses, categories, home banners) in parallel — called at app start while the
  * session is restored. Skips anything already fresh in the cache, so it never causes repeated requests.
  */
@@ -70,13 +81,17 @@ export function useCourses() {
   return useQuery(coursesQuery);
 }
 
-/** Returns a function that warms a course page (on press-in, before navigation finishes). */
+/**
+ * Returns a function that warms a course page (on press-in, before navigation finishes). With `lessonId`
+ * (Continue learning) the lesson's video details are requested at the same time, in parallel.
+ */
 export function usePrefetchCourse() {
   const qc = useQueryClient();
   const { session } = useAuth();
   const uid = session?.user.id;
-  return useCallback((id: string) => {
+  return useCallback((id: string, lessonId?: string | null) => {
     qc.prefetchQuery(courseQuery(id, uid)).catch(() => undefined);
+    if (lessonId && uid) qc.prefetchQuery(lessonVideoQuery(lessonId, uid)).catch(() => undefined);
   }, [qc, uid]);
 }
 

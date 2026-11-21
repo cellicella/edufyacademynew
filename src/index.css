@@ -252,3 +252,12 @@
 .ed-article pre code { background: transparent; padding: 0; color: inherit; }
 .ed-article hr { border: 0; border-top: 1px solid #E2E8F0; margin: 2em 0; }
 @media (max-width: 640px) { .ed-article { font-size: 16.5px; } }
+
+/* ---------------------------------------------------------------------------------------------
+   Sticky course purchase bar (src/components/course/CoursePurchase.tsx). While the bar is shown it
+   publishes its height as --ed-bottom-bar: the page gets matching bottom space (nothing, including the
+   footer, is ever hidden behind it) and floating widgets — WhatsApp button, toasts, Tidio live chat —
+   move up above it. Without the bar the variable is unset and everything sits where it always did.
+   --------------------------------------------------------------------------------------------- */
+html[data-bottom-bar] body { padding-bottom: var(--ed-bottom-bar, 0px); }
+html[data-bottom-bar] #tidio-chat-iframe { bottom: var(--ed-bottom-bar, 0px) !important; }

@@ -10,6 +10,19 @@ import { authMessage } from '@/logic/authErrors';
 import { friendlyMessage } from '@/logic/apiErrors';
 import { unregisterPush } from '@/services/push';
 import { clearPersistedQueryCache } from '@/lib/queryPersist';
+import { prefs } from '@/lib/secureStorage';
+
+/** Last loaded profile per account (name, photo, phone — no tokens), shown instantly at the next start. */
+const profileKey = (uid: string) => `profile_${uid}`;
+async function readCachedProfile(uid: string): Promise<Profile | null> {
+  try {
+    const raw = await prefs.get(profileKey(uid));
+    const p = raw ? (JSON.parse(raw) as Profile) : null;
+    return p && p.id === uid ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 interface AuthState {
   session: Session | null;
@@ -47,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userIdRef.current === s.user.id) {
         setProfile(p);
         setProfileError(null);
+        prefs.set(profileKey(s.user.id), JSON.stringify(p)).catch(() => undefined);
       }
     } catch (e) {
       // Keep the session; the Profile tab shows a retry option.
@@ -66,6 +80,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // deadlock the auth lock), so profile loading is deferred to the next tick.
       if (event === 'INITIAL_SESSION') {
         setTimeout(async () => {
+          // Returning student: open with the profile saved on the phone and refresh it in the background,
+          // instead of holding the start-up screen for a network round trip.
+          const cached = s?.user ? await readCachedProfile(s.user.id) : null;
+          if (cached && alive && userIdRef.current === cached.id) {
+            setProfile(cached);
+            setInitializing(false);
+            loadProfile(s);
+            return;
+          }
           await loadProfile(s);
           if (alive) setInitializing(false);
         }, 0);
@@ -75,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
         setProfileError(null);
         queryClient.clear(); // drop the previous student's cached data
+        if (previousUser) prefs.remove(profileKey(previousUser)).catch(() => undefined);
         clearPersistedQueryCache(); // …including the copy saved on this phone
       }
     });

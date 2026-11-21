@@ -45,7 +45,7 @@ const config: ExpoConfig = {
   slug: 'edufy-academy',
   // Student app targets Android and iOS only (secure session storage is not available on web)
   platforms: ['android', 'ios'],
-  version: '1.0.0',
+  version: '1.0.1',
   orientation: 'default', // portrait UI, landscape allowed for fullscreen video
   icon: './assets/images/icon.png',
   scheme: 'edufyacademy',

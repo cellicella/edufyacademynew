@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../components/common/CourseCard';
 import { formatDuration } from '../../utils/courseUtils';
 import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
+import { displayInstructor } from '../../config/leadInstructor';
 
 export const BundleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -100,7 +101,7 @@ export const BundleDetailsPage: React.FC = () => {
                   <img src={cdnImage(c.thumbnail, 240)} alt="" className="w-[120px] aspect-[4/3] object-cover rounded-[14px]" />
                   <div className="min-w-0 pr-2">
                     <h3 className="font-display text-[19px] font-bold text-[#111827] group-hover:text-[#004AAD] line-clamp-2">{c.title}</h3>
-                    <div className="mt-1 text-[15px] text-[#64748B]">{c.instructor.name} · {c.level} · {formatDuration(c.durationHours)}</div>
+                    <div className="mt-1 text-[15px] text-[#64748B]">{displayInstructor(c.instructor).name} · {c.level} · {formatDuration(c.durationHours)}</div>
                     {isEnrolled(c.id) && <div className="mt-1 text-[14px] font-semibold text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 className="w-4 h-4" />You own this course</div>}
                   </div>
                 </Link>
