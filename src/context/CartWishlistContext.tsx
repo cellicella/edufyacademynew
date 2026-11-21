@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { type CheckoutOrder, trackInitiateCheckout, trackVerifiedPurchase } from '../lib/metaEvents';
 import { useAuth } from './AuthContext';
 import { supabase, isSupabaseConfigured, getAuthToken } from '../lib/supabase';
 import { Course } from '../types';
@@ -300,6 +301,14 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return true;
       }
       const { orderId, amount, currency, keyId, courseTitle, user } = orderData;
+      // Meta Pixel: the server's order (price from the database) for InitiateCheckout / Purchase
+      const pixelOrder: CheckoutOrder = {
+        orderId,
+        amount: Number(amount),
+        currency,
+        courseIds: Array.isArray(orderData.courseIds) ? orderData.courseIds : [course.id],
+        title: courseTitle || course.title,
+      };
 
       // Step 2: Load Razorpay SDK
       const scriptLoaded = await loadRazorpayScript();
@@ -358,6 +367,9 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   throw new Error(verifyResult.error || 'Cryptographic payment verification failed.');
                 }
 
+                // Meta Pixel Purchase: only for this server-verified order with the enrollment confirmed (once per order)
+                trackVerifiedPurchase(pixelOrder, { httpOk: verifyRes.ok, body: verifyResult });
+
                 // Granted only after server verification
                 setEnrolledCourseIds((prev) => [...prev, course.id]);
                 setIsProcessingPayment(false);
@@ -377,6 +389,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
             showToast(resp?.error?.description || 'Payment failed. You can retry in the Razorpay window.', 'error');
           });
           rzp.open();
+          trackInitiateCheckout(pixelOrder); // Razorpay checkout is open for this order
         } else {
           // Development/Testing fallback with server-side signature verification simulation
           // Executes the exact same server-side verification endpoint
@@ -459,10 +472,18 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return true;
       }
 
+      const pixelOrder: CheckoutOrder = {
+        orderId: orderData.orderId,
+        amount: Number(orderData.amount),
+        currency: orderData.currency,
+        courseIds: Array.isArray(orderData.courseIds) ? orderData.courseIds : [],
+        title: orderData.courseTitle || bundle.title,
+      };
       const verify = async (payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         const verifyRes = await fetch(`${API_BASE_URL}/payments/verify-payment`, { method: 'POST', headers, body: JSON.stringify(payload) });
         const result = await readJson(verifyRes);
         if (!verifyRes.ok || !result.success) throw new Error(result.error || 'Payment verification failed.');
+        trackVerifiedPurchase(pixelOrder, { httpOk: verifyRes.ok, body: result });
         grant(result.courseIds || []);
         showToast(`Payment verified! "${bundle.title}" is unlocked.`, 'success');
       };
@@ -504,6 +525,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
             showToast(resp?.error?.description || 'Payment failed. You can retry in the Razorpay window.', 'error');
           });
           rzp.open();
+          trackInitiateCheckout(pixelOrder);
         } else {
           // Local development without Razorpay keys (server only accepts this outside production)
           verify({ razorpay_order_id: orderId, razorpay_payment_id: `pay_test_${Date.now()}`, razorpay_signature: 'test' })
@@ -576,6 +598,13 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return true;
       }
       const { orderId, amount, currency, keyId, courseTitle, user } = orderData;
+      const pixelOrder: CheckoutOrder = {
+        orderId,
+        amount: Number(amount),
+        currency,
+        courseIds: Array.isArray(orderData.courseIds) ? orderData.courseIds : courseIds,
+        title: courseTitle,
+      };
       const scriptLoaded = await loadRazorpayScript();
 
       return new Promise<boolean>((resolve) => {
@@ -628,6 +657,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 if (!verifyRes.ok || !verifyResult.success) {
                   throw new Error(verifyResult.error || 'Cryptographic payment verification failed.');
                 }
+                trackVerifiedPurchase(pixelOrder, { httpOk: verifyRes.ok, body: verifyResult });
 
                 setEnrolledCourseIds((prev) => [...new Set([...prev, ...courseIds])]);
                 clearCart();
@@ -649,6 +679,7 @@ export const CartWishlistProvider: React.FC<{ children: React.ReactNode }> = ({ 
             showToast(resp?.error?.description || 'Payment failed. You can retry in the Razorpay window.', 'error');
           });
           rzp.open();
+          trackInitiateCheckout(pixelOrder);
         } else {
           // Dev test fallback with server-side signature verification
           setTimeout(async () => {

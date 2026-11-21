@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { courseService } from '../../services/api';
 import { Course } from '../../types';
 import { useCartWishlist } from '../../context/CartWishlistContext';
@@ -31,6 +31,7 @@ import { InstructorSpotlight } from '../../components/course/InstructorSpotlight
 import { displayInstructor } from '../../config/leadInstructor';
 import { useResumePurchase, useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
 import { useSeo } from '../../lib/seo';
+import { trackViewContent } from '../../lib/metaEvents';
 import { SeoCourse, breadcrumbLd, courseLd, coursePath, courseSeo, readableTitle } from '../../seo/seoConfig';
 
 export const CourseDetailsPage: React.FC = () => {
@@ -117,6 +118,14 @@ export const CourseDetailsPage: React.FC = () => {
       setLoading(false);
     });
   }, [id]);
+
+  // Meta Pixel ViewContent: once per visit to a published course page (location.key changes on every navigation,
+  // re-renders keep it). The loaded course must be the one in the address, so a previous course is never counted.
+  const viewKey = useLocation().key;
+  useEffect(() => {
+    if (loading || !course || !id || (course.id !== id && course.slug !== id)) return;
+    trackViewContent({ id: course.id, title: course.title, category: course.category, price: course.price, isPublished: course.isPublished }, viewKey);
+  }, [loading, course, id, viewKey]);
 
   if (loading) {
     return (

@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { authCallbackUrl, siteUrl } from '../lib/siteUrl';
 import { disableGoogleAutoSelect } from '../lib/googleIdentity';
+import { isNewGoogleAccount, recordRegistration } from '../lib/metaEvents';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -181,6 +182,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
+      // Meta Pixel CompleteRegistration for a brand-new Google account (OAuth redirect or Google button);
+      // counted once per account on this browser, sent from the next page where the pixel runs
+      if (event === 'SIGNED_IN' && session?.user && isNewGoogleAccount(session.user, Date.now())) {
+        recordRegistration(session.user.id, 'google');
+      }
       if (session?.user) {
         await fetchSupabaseProfile(
           session.user.id,
@@ -327,6 +333,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setAuthError(message);
         return { success: false, error: message };
+      }
+
+      // Meta Pixel CompleteRegistration: Supabase created a new account. (For an email that is already registered,
+      // Supabase answers without an identity and no account is created, so nothing is counted.)
+      if (data.user?.id && (data.user.identities?.length ?? 0) > 0) {
+        recordRegistration(data.user.id, 'email');
       }
 
       // Check if session was granted immediately (auto-confirm enabled)
