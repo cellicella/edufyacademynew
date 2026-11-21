@@ -5,6 +5,23 @@
     <meta name="theme-color" content="#004AAD" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Edufy Academy – Affordable Online Courses with Certificates</title>
+    <!-- Meta Pixel base code (standard Meta snippet). It runs in the page itself so the pixel is initialised and the
+         first PageView is sent as soon as the page loads. Not run on sign-in callback, password reset or dashboard
+         pages, whose address can carry sign-in tokens. Later page changes inside the app: src/lib/metaPixel.ts -->
+    <script>
+      (function (w, d, path) {
+        if (/^\/(auth|reset-password|forgot-password|admin|instructor)(\/|$)/i.test(path)) return;
+        !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+        n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(w,d,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        w.fbq.disablePushState = true; // page changes inside the app are sent by the app (one PageView each)
+        w.fbq('init', '2722451508224726');
+        w.fbq('track', 'PageView');
+        w.edufyPixelPageView = path;
+      })(window, document, location.pathname);
+    </script>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/edufy-logo-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/brand/edufy-logo-192.png" />
@@ -23,7 +40,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Meta Pixel (no-JavaScript fallback). The pixel itself is loaded by the app: src/lib/metaPixel.ts -->
+    <!-- Meta Pixel (no-JavaScript fallback) -->
     <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=2722451508224726&amp;ev=PageView&amp;noscript=1" /></noscript>
     <!-- Deployment settings (API address). Edit config.js on the server — no rebuild needed. -->
     <script src="/config.js"></script>
