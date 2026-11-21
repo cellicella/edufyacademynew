@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Share2, Tag, Check } from 'lucide-react';
 import { BlogPostFull, blogPublicService } from '../../services/content';
-import { useDocumentMeta } from '../../lib/seo';
+import { useSeo } from '../../lib/seo';
+import { breadcrumbLd, clip, postLd, postPath, postSeo } from '../../seo/seoConfig';
 import { BlogCard, PostMeta } from './BlogListingPage';
 import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 
@@ -28,10 +29,22 @@ export const BlogDetailsPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  useDocumentMeta(
-    post
-      ? { title: post.seoTitle || post.title, description: post.seoDescription || post.excerpt, image: post.coverImageUrl, type: 'article', canonicalPath: `/blog/${post.slug}` }
-      : null
+  // Search metadata from the article (same text and structured data as the prerendered page)
+  const seoPost = post
+    ? { slug: post.slug, title: post.title, excerpt: post.excerpt, contentHtml: post.contentHtml, coverImage: post.coverImageUrl, authorName: post.authorName, publishedAt: post.publishedAt, updatedAt: post.updatedAt, seoTitle: post.seoTitle, seoDescription: post.seoDescription }
+    : null;
+  useSeo(
+    loading
+      ? null
+      : seoPost
+        ? {
+            ...postSeo(seoPost),
+            canonicalPath: postPath(seoPost),
+            image: post?.coverImageUrl,
+            type: 'article',
+            ld: [postLd(seoPost), breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Blog', path: '/blog' }, { name: clip(seoPost.title, 80), path: postPath(seoPost) }])],
+          }
+        : { title: 'Article not found | Edufy Academy', robots: 'noindex, follow', canonicalPath: null, description: null, ld: [] }
   );
 
   const share = async () => {
@@ -90,7 +103,7 @@ export const BlogDetailsPage: React.FC = () => {
 
       {post.coverImageUrl && (
         <div className="max-w-5xl mx-auto px-5 sm:px-8 mt-8">
-          <img src={cdnImage(post.coverImageUrl, 1280)} srcSet={cdnSrcSet(post.coverImageUrl, [640, 960, 1280, 1600])} sizes="(min-width: 1024px) 1000px, 100vw" alt="" className="w-full aspect-[16/8] object-cover rounded-[28px]" />
+          <img src={cdnImage(post.coverImageUrl, 1280)} srcSet={cdnSrcSet(post.coverImageUrl, [640, 960, 1280, 1600])} sizes="(min-width: 1024px) 1000px, 100vw" alt={post.title} className="w-full aspect-[16/8] object-cover rounded-[28px]" />
         </div>
       )}
 

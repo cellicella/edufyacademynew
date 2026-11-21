@@ -5,6 +5,8 @@
 
 Options -Indexes
 DirectoryIndex index.html
+# Unknown addresses: real HTTP 404 with the app's "page not found" view (404.html is built by scripts/seo/prerender.ts)
+ErrorDocument 404 /404.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -24,7 +26,23 @@ DirectoryIndex index.html
   # 2. API paths never fall through to the website (the API lives on api.edufyacademy.com)
   RewriteRule ^api(/|$) - [R=404,L]
 
-  # 3. Single-page app: every route that is not a real file or folder returns index.html,
+  # 3. SEO: public pages have a prerendered HTML file in /seo (title, description, canonical, Open Graph,
+  #    structured data and readable content — built by scripts/seo/prerender.ts). The React app starts from it
+  #    exactly as from index.html. When a page has no such file the normal app shell below is used.
+  RewriteCond %{DOCUMENT_ROOT}/seo/index.html -f
+  RewriteRule ^$ /seo/index.html [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/seo/$1.html -f
+  RewriteRule ^(.+?)/?$ /seo/$1.html [L]
+
+  # 4. Addresses that are not a website page → HTTP 404 (served by 404.html, which loads the app's 404 view).
+  #    Keep this list in line with the routes in src/App.tsx.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule !^(courses|categories|bundles|instructors|instructor|verify-certificate|about|contact|become-instructor|faq|blog|privacy|terms|refund|login|register|forgot-password|reset-password|auth|learn|student|admin)(/|$) - [R=404,L]
+
+  # 5. Single-page app: every route that is not a real file or folder returns index.html,
   #    so refreshing /courses/abc, /student/courses or /admin/settings works.
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
@@ -37,8 +55,8 @@ DirectoryIndex index.html
   <FilesMatch "\.(js|css|woff2?|png|jpe?g|webp|svg|ico)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
-  # Always fetch the latest page shell and deployment settings
-  <FilesMatch "^(index\.html|config\.js)$">
+  # Always fetch the latest page shells, prerendered pages, sitemap and deployment settings
+  <FilesMatch "(\.html|^config\.js|^sitemap\.xml|^robots\.txt)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
   Header always set X-Content-Type-Options "nosniff"

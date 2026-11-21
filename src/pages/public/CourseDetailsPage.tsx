@@ -30,6 +30,8 @@ import { CoursePurchaseButton, CtaStrip, PriceInline, StickyPurchaseBar } from '
 import { InstructorSpotlight } from '../../components/course/InstructorSpotlight';
 import { displayInstructor } from '../../config/leadInstructor';
 import { useResumePurchase, useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
+import { useSeo } from '../../lib/seo';
+import { SeoCourse, breadcrumbLd, courseLd, coursePath, courseSeo, readableTitle } from '../../seo/seoConfig';
 
 export const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +61,29 @@ export const CourseDetailsPage: React.FC = () => {
   } = useCartWishlist();
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
+
+  // Search metadata from the real course data (same text as the prerendered page)
+  const seoCourse: SeoCourse | null = course
+    ? {
+        id: course.id, title: course.title, subtitle: course.subtitle, description: course.description, category: course.category,
+        level: course.level, language: course.language, price: course.price, originalPrice: course.originalPrice,
+        durationHours: course.durationHours, totalLessons: course.totalLessons, thumbnail: course.thumbnail,
+        learningOutcomes: course.learningOutcomes, requirements: course.requirements,
+        instructorName: course.instructor?.name, instructorTitle: course.instructor?.title,
+      }
+    : null;
+  useSeo(
+    loading
+      ? null
+      : seoCourse
+        ? {
+            ...courseSeo(seoCourse),
+            canonicalPath: coursePath(seoCourse),
+            image: course?.thumbnail,
+            ld: [courseLd(seoCourse), breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Courses', path: '/courses' }, { name: readableTitle(seoCourse.title), path: coursePath(seoCourse) }])],
+          }
+        : { title: 'Course not found | Edufy Academy', robots: 'noindex, follow', canonicalPath: null, description: null, ld: [] }
+  );
 
   // Guests are sent to sign in and come back here (?enroll=1) to continue the purchase once
   const startPurchase = useStartCoursePurchase();
@@ -227,7 +252,7 @@ export const CourseDetailsPage: React.FC = () => {
             <div className="lg:col-span-5">
               <div className="ed-frame">
                 <div className="ed-frame-inner relative aspect-[4/3] overflow-hidden bg-[#E8EFFB]">
-                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
@@ -443,7 +468,7 @@ export const CourseDetailsPage: React.FC = () => {
                   aria-label={`Play preview of ${course.title}`}
                   className="group aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900 relative block"
                 >
-                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   <span className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-2">
                     <span className="w-14 h-14 rounded-full bg-white text-[#004AAD] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
                       <Play className="w-6 h-6 ml-0.5 fill-current" />

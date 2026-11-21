@@ -10,6 +10,8 @@ import { formatDuration } from '../../utils/courseUtils';
 import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 import { displayInstructor } from '../../config/leadInstructor';
 import { useGuestRedirect, useResumePurchase } from '../../hooks/usePurchaseFlow';
+import { useSeo } from '../../lib/seo';
+import { breadcrumbLd, bundlePath, bundleSeo, readableTitle } from '../../seo/seoConfig';
 
 export const BundleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +25,21 @@ export const BundleDetailsPage: React.FC = () => {
     if (!id) return;
     bundleService.getBundle(id).then(setBundle).finally(() => setLoading(false));
   }, [id]);
+
+  // Search metadata from the bundle's real data (same text as the prerendered page)
+  const publishedCount = bundle ? bundle.courses.length : 0;
+  useSeo(
+    loading
+      ? null
+      : bundle && publishedCount > 0
+        ? {
+            ...bundleSeo({ slug: bundle.slug, title: bundle.title, subtitle: bundle.subtitle, description: bundle.description, thumbnail: bundle.thumbnail, price: bundle.price, courseCount: publishedCount }),
+            canonicalPath: bundlePath(bundle),
+            image: bundle.thumbnail,
+            ld: [breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Bundles', path: '/bundles' }, { name: readableTitle(bundle.title), path: bundlePath(bundle) }])],
+          }
+        : { title: 'Bundle not found | Edufy Academy', robots: 'noindex, follow', canonicalPath: null, description: null, ld: [] }
+  );
 
   // Guests sign in first and come back here (?buy=1) to continue the bundle purchase once
   const toSignIn = useGuestRedirect();
@@ -72,7 +89,7 @@ export const BundleDetailsPage: React.FC = () => {
           </div>
           <div className="lg:col-span-5">
             <div className="bg-white rounded-[28px] shadow-xl p-6 sm:p-8">
-              {bundle.thumbnail && <img src={cdnImage(bundle.thumbnail, 1280)} srcSet={cdnSrcSet(bundle.thumbnail, [640, 960, 1280])} sizes="(min-width: 1024px) 800px, 100vw" alt="" className="w-full aspect-[16/9] object-cover rounded-[18px] mb-6" />}
+              {bundle.thumbnail && <img src={cdnImage(bundle.thumbnail, 1280)} srcSet={cdnSrcSet(bundle.thumbnail, [640, 960, 1280])} sizes="(min-width: 1024px) 800px, 100vw" alt={`${bundle.title} – course bundle`} width={1280} height={720} className="w-full aspect-[16/9] object-cover rounded-[18px] mb-6" />}
               <div className="flex items-baseline gap-3">
                 <span className="font-display text-[36px] font-extrabold text-[#111827]">{formatPrice(bundle.price)}</span>
                 {saving > 0 && <span className="text-[18px] text-[#94A3B8] line-through">₹{bundle.coursesValue.toLocaleString('en-IN')}</span>}

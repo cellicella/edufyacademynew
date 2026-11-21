@@ -6,6 +6,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { TidioChat } from './components/common/TidioChat';
+import { RouteSeo } from './components/seo/RouteSeo';
+import { NotFoundPage } from './pages/public/NotFoundPage';
 import { WhatsAppButton } from './components/common/WhatsAppButton';
 import { AuthProvider } from './context/AuthContext';
 import { CourseProgressProvider } from './context/CourseProgressContext';
@@ -97,6 +99,7 @@ export default function App() {
         <CartWishlistProvider>
           <BrowserRouter>
             <ScrollToTop />
+            <RouteSeo />
             <GoogleOneTap />
             <AuthLinkRescue />
             <MaintenanceGate>
@@ -210,22 +213,8 @@ export default function App() {
                 <Route path="settings/:section" element={<AdminSettingsPage />} />
               </Route>
 
-              {/* 404 Catch-All */}
-              <Route
-                path="*"
-                element={
-                  <div className="min-h-screen bg-[#F7F9FC] flex flex-col items-center justify-center p-6 text-center space-y-4">
-                    <h1 className="font-display text-4xl font-extrabold text-[#111827]">404</h1>
-                    <p className="text-sm text-[#64748B]">The requested page could not be located.</p>
-                    <a
-                      href="/"
-                      className="px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full"
-                    >
-                      Return to Edufy Home
-                    </a>
-                  </div>
-                }
-              />
+              {/* 404 Catch-All (noindex; the web server answers unknown addresses with HTTP 404) */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
             </MaintenanceGate>
             <WhatsAppButton />

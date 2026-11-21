@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Clock, ArrowRight, Search, X, Newspaper } from 'lucide-react';
 import { BlogPostFull, blogPublicService } from '../../services/content';
-import { useDocumentMeta } from '../../lib/seo';
 import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
 
 const dateLabel = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -25,7 +24,7 @@ export const BlogCard: React.FC<{ post: BlogPostFull }> = ({ post }) => (
   <article className="group bg-white rounded-[24px] border border-[#E2E8F0] overflow-hidden flex flex-col hover:shadow-[0_18px_40px_-20px_rgba(17,24,39,0.25)] transition-shadow">
     <Link to={`/blog/${post.slug}`} className="block aspect-[16/9] bg-gradient-to-br from-[#004AAD] to-[#5E17EB] overflow-hidden" tabIndex={-1} aria-hidden="true">
       {post.coverImageUrl ? (
-        <img src={cdnImage(post.coverImageUrl, 640)} srcSet={cdnSrcSet(post.coverImageUrl, [320, 480, 640, 960])} sizes="(min-width: 1024px) 33vw, 100vw" alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
+        <img src={cdnImage(post.coverImageUrl, 640)} srcSet={cdnSrcSet(post.coverImageUrl, [320, 480, 640, 960])} sizes="(min-width: 1024px) 33vw, 100vw" alt={post.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
       ) : (
         <div className="w-full h-full flex items-center justify-center"><Newspaper className="w-10 h-10 text-white/70" /></div>
       )}
@@ -56,7 +55,6 @@ export const BlogListingPage: React.FC = () => {
   const category = params.get('category') || '';
   const q = params.get('q') || '';
 
-  useDocumentMeta({ title: 'Blog', description: 'Career guides, learning tips and updates from Edufy Academy.', canonicalPath: '/blog' });
 
   useEffect(() => {
     setLoading(true);
@@ -132,7 +130,7 @@ export const BlogListingPage: React.FC = () => {
         <>
           {featured && (
             <Link to={`/blog/${featured.slug}`} className="group relative block rounded-[28px] overflow-hidden mb-12 bg-gradient-to-br from-[#004AAD] to-[#5E17EB] min-h-[360px]">
-              {featured.coverImageUrl && <img src={cdnImage(featured.coverImageUrl, 1280)} srcSet={cdnSrcSet(featured.coverImageUrl, [640, 960, 1280, 1600])} sizes="100vw" alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700" />}
+              {featured.coverImageUrl && <img src={cdnImage(featured.coverImageUrl, 1280)} srcSet={cdnSrcSet(featured.coverImageUrl, [640, 960, 1280, 1600])} sizes="100vw" alt={featured.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700" />}
               <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/90 via-[#0B1220]/40 to-transparent" />
               <div className="relative p-7 sm:p-10 flex flex-col justify-end min-h-[360px] max-w-3xl">
                 <span className="self-start px-3 h-7 inline-flex items-center rounded-full bg-white/15 text-white text-[13px] font-semibold">Featured{featured.category ? ` · ${featured.category}` : ''}</span>

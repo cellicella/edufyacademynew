@@ -4,6 +4,8 @@ import { instructorService, courseService } from '../../services/api';
 import { Instructor, Course } from '../../types';
 import { CourseCard } from '../../components/common/CourseCard';
 import { Star, Users, BookOpen, Globe, Award } from 'lucide-react';
+import { useSeo } from '../../lib/seo';
+import { SITE_NAME, SITE_URL, breadcrumbLd, clip, stripHtml } from '../../seo/seoConfig';
 
 export const InstructorDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +26,24 @@ export const InstructorDetailsPage: React.FC = () => {
       setLoading(false);
     });
   }, [id]);
+
+  const path = instructor ? `/instructors/${encodeURIComponent(instructor.id)}` : null;
+  useSeo(
+    loading
+      ? null
+      : instructor && path
+        ? {
+            title: `${instructor.name} – Instructor | ${SITE_NAME}`,
+            description: clip(stripHtml(instructor.bio) || `${instructor.name}${instructor.title ? `, ${instructor.title}` : ''} — instructor at Edufy Academy. Explore the online courses they teach.`, 160),
+            canonicalPath: path,
+            image: instructor.avatar,
+            ld: [
+              { '@type': 'Person', name: instructor.name, ...(instructor.title ? { jobTitle: instructor.title } : {}), url: `${SITE_URL}${path}`, worksFor: { '@id': `${SITE_URL}/#organization` } },
+              breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Instructors', path: '/instructors' }, { name: instructor.name, path }]),
+            ],
+          }
+        : { title: `Instructor not found | ${SITE_NAME}`, robots: 'noindex, follow', canonicalPath: null, description: null, ld: [] }
+  );
 
   if (loading) {
     return <div className="py-20 text-center text-sm text-[#64748B]">Loading instructor profile...</div>;

@@ -55,7 +55,7 @@ const Thumbnail: React.FC<{ course: Course; className?: string }> = ({ course, c
       src={cdnImage(course.thumbnail, 640)}
       srcSet={cdnSrcSet(course.thumbnail, [320, 480, 640, 960])}
       sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 100vw"
-      alt=""
+      alt={course.title}
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setImageError(true)}

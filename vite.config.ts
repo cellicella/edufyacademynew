@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
+import {seoPrerender} from './scripts/seo/prerender';
 
 /**
  * Production addresses built into `vite build` when no VITE_API_BASE_URL / VITE_SITE_URL is set.
@@ -19,6 +20,7 @@ const LOCAL_ADDRESS = /^https?:\/\/(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|1
 
 export default defineConfig(({command, mode}) => {
   const define: Record<string, string> = {};
+  const buildEnv: Record<string, string> = command === 'build' ? loadEnv(mode, process.cwd(), 'VITE_') : {};
   if (command === 'build') {
     const env = loadEnv(mode, process.cwd(), 'VITE_');
     for (const [key, fallback] of Object.entries(PRODUCTION_DEFAULTS)) {
@@ -50,7 +52,15 @@ export default defineConfig(({command, mode}) => {
     }
   }
   return {
-    plugins: [react(), tailwindcss()],
+    // seoPrerender: sitemap.xml, per-page SEO HTML (dist/seo/) and 404.html after `vite build` (scripts/seo/prerender.ts)
+    plugins: [
+      react(),
+      tailwindcss(),
+      seoPrerender({
+        supabaseUrl: (buildEnv.VITE_SUPABASE_URL || '').trim(),
+        supabaseKey: (buildEnv.VITE_SUPABASE_PUBLISHABLE_KEY || buildEnv.VITE_SUPABASE_ANON_KEY || '').trim(),
+      }),
+    ],
     define,
     resolve: {
       alias: {

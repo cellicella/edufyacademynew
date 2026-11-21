@@ -1,6 +1,15 @@
+# Edufy Academy — https://edufyacademy.com
+# Public pages (home, courses, categories, bundles, blog, instructors, about, contact, legal) are crawlable.
+# Account, learning, dashboard and admin areas are not. Sign-in pages stay crawlable so their "noindex" tag is seen.
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /instructor
 Disallow: /student
+Disallow: /instructor/
+Disallow: /instructor$
+Disallow: /learn/
 Disallow: /auth/
+Disallow: /api/
+Disallow: /seo/
+
+Sitemap: https://edufyacademy.com/sitemap.xml
