@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { REDIRECT_MARKER, buildSeoFiles, categoriesWithCourses, courseRedirectRules, mapCourseRow, renderPage, withCourseRedirects, type SeoData } from '../scripts/seo/prerender';
-import { STATIC_PAGES, courseLd, isPrivatePath, jsonLdScript, readableTitle, sitemapXml } from '../src/seo/seoConfig';
+import { SITE_URL, STATIC_PAGES, courseLd, isPrivatePath, jsonLdScript, postLd, readableTitle, sitemapXml } from '../src/seo/seoConfig';
 
 const TEMPLATE = `<!doctype html><html lang="en"><head><meta charset="UTF-8" />
 <title>Edufy Academy – Affordable Online Courses with Certificates</title>
@@ -174,4 +174,16 @@ test('a course SEO title / description is used for the search result when set, e
   assert.match(html, /<title>Salary Negotiation Course: Ask for a Raise \| Edufy Academy<\/title>/);
   assert.match(html, /<meta name="description" content="Learn salary negotiation with a four-step framework\." \/>/);
   assert.match(html, /<h1>Mastering Salary Negotiation: How to Ask for a Raise and Secure Your Worth<\/h1>/, 'the page heading keeps the full course name');
+});
+
+test('blog posts without a named author are credited to the organisation in BlogPosting data', () => {
+  const base = { slug: 'how-to-prepare-for-a-job-interview', title: 'How to Prepare for a Job Interview', publishedAt: '2026-11-22T05:47:00Z' };
+  const org = { '@id': `${SITE_URL}/#organization` };
+  assert.deepEqual(postLd({ ...base, authorName: null }).author, org);
+  assert.deepEqual(postLd({ ...base, authorName: 'Edufy Academy' }).author, org); // the app's display fallback
+  assert.deepEqual(postLd({ ...base, authorName: 'Bhavna Nimbalkar' }).author, { '@type': 'Person', name: 'Bhavna Nimbalkar' });
+  const ld = postLd({ ...base, authorName: null });
+  assert.equal(ld['@type'], 'BlogPosting');
+  assert.equal(ld.url, `${SITE_URL}/blog/how-to-prepare-for-a-job-interview`);
+  assert.equal(ld.datePublished, base.publishedAt);
 });

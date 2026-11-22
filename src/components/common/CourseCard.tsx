@@ -60,7 +60,7 @@ const Thumbnail: React.FC<{ course: Course; className?: string }> = ({ course, c
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setImageError(true)}
-      className={`w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.05,0.7,0.1,1)] group-hover:scale-[1.04] ${className}`}
+      className={`w-full h-full object-contain transition-transform duration-700 ease-[cubic-bezier(0.05,0.7,0.1,1)] group-hover:scale-[1.04] ${className}`}
     />
   );
 };
@@ -75,7 +75,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   const href = coursePath(course);
   const instructor = displayInstructor(course.instructor);
 
-  const wishlistButton = (
+  const wishlistButton = (placement = 'absolute top-3 right-3 bg-white/95 shadow-sm') => (
     <button
       onClick={(e) => {
         e.preventDefault();
@@ -84,7 +84,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
       }}
       aria-label={isFavorited ? 'Remove from wishlist' : 'Save to wishlist'}
       aria-pressed={isFavorited}
-      className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 shadow-sm flex items-center justify-center text-[#334155] hover:text-[#5E17EB] hover:scale-105 active:scale-95 transition"
+      className={`${placement} w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-[#334155] hover:text-[#5E17EB] hover:scale-105 active:scale-95 transition`}
     >
       <Heart className={`w-[18px] h-[18px] ${isFavorited ? 'fill-[#5E17EB] text-[#5E17EB]' : ''}`} />
     </button>
@@ -142,7 +142,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
       <article className="group relative grid grid-cols-1 md:grid-cols-[300px_1fr] gap-5 p-2 bg-white rounded-[24px] border border-[#E2E8F0] hover:border-transparent hover:shadow-lg transition-[box-shadow,border-color] duration-300">
         <Link to={href} className="relative block aspect-[16/10] md:aspect-auto md:h-full min-h-[190px] rounded-[18px] overflow-hidden bg-[#E8EFFB]">
           <Thumbnail course={course} />
-          {wishlistButton}
+          {wishlistButton()}
         </Link>
         <div className="flex flex-col gap-3 px-3 md:px-2 pb-3 md:py-4 md:pr-5">
           <div className="flex items-center justify-between gap-3">
@@ -185,21 +185,28 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   /* ----------------------------- Grid variant ----------------------------- */
   return (
     <article className="group relative h-full flex flex-col p-2 bg-white rounded-[24px] border border-[#E2E8F0] hover:border-transparent hover:shadow-lg transition-[box-shadow,border-color] duration-300">
-      <Link to={href} className="relative block aspect-[16/10] rounded-[18px] overflow-hidden bg-[#E8EFFB]" tabIndex={-1} aria-hidden="true">
+      <Link to={href} className="relative block aspect-video rounded-[18px] overflow-hidden bg-gradient-to-br from-[#EEF3FF] to-[#F3EEFF]" tabIndex={-1} aria-hidden="true">
+        {/* Nothing is laid over the thumbnail, so its title and logo stay fully visible */}
         <Thumbnail course={course} />
-        <span className="absolute top-3 left-3 max-w-[70%] truncate h-8 px-3 inline-flex items-center rounded-full bg-white/95 text-[13px] font-semibold text-[#111827] shadow-sm">
-          {course.category}
-        </span>
-        {enrolled && (
-          <span className="absolute bottom-3 left-3 h-8 px-3 inline-flex items-center gap-1.5 rounded-full bg-[#004AAD] text-white text-[13px] font-semibold shadow">
-            <Check className="w-3.5 h-3.5" /> Enrolled
-          </span>
-        )}
       </Link>
-      {wishlistButton}
 
       <div className="flex-1 flex flex-col gap-3 px-3 pt-4 pb-3">
-        {metaLine}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {course.category && (
+                <span className="max-w-full truncate h-7 px-2.5 inline-flex items-center rounded-full bg-[#EEF3FF] text-[12px] font-semibold text-[#003B8B]">{course.category}</span>
+              )}
+              {enrolled && (
+                <span className="h-7 px-2.5 inline-flex items-center gap-1 rounded-full bg-[#004AAD] text-white text-[12px] font-semibold">
+                  <Check className="w-3.5 h-3.5" /> Enrolled
+                </span>
+              )}
+            </div>
+            {metaLine}
+          </div>
+          {wishlistButton('relative -mt-1 bg-[#F7F9FC] border border-[#E2E8F0]')}
+        </div>
         <Link to={href} className="focus-visible:outline-none">
           <h3 className="font-display text-[21px] font-bold leading-[1.28] tracking-tight text-[#111827] line-clamp-2 group-hover:text-[#004AAD] transition-colors">
             {course.title}

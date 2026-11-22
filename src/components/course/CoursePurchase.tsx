@@ -186,7 +186,7 @@ export const StickyPurchaseBar: React.FC<{ course: PurchaseCourse }> = ({ course
     >
       <div className="max-w-[1280px] mx-auto px-4 sm:px-8 pt-3 flex items-center gap-4">
         <div className="flex-1 min-w-0">
-          <div className="hidden lg:block text-[14px] font-semibold text-[#111827] truncate">{course.title}</div>
+          <div className="text-[12px] sm:text-[14px] font-semibold text-[#111827] truncate">{course.title}</div>
           {enrolled ? (
             <div className="text-[14px] font-semibold text-emerald-700">You’re enrolled</div>
           ) : (

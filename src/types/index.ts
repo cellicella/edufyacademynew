@@ -150,6 +150,11 @@ export interface Certificate {
   issueDate: string;
   gradeScore: number;
   verificationHash: string;
+  /** Course length in hours at the time of issue, when known */
+  courseHours?: number | null;
+  /** Set when an admin has revoked the certificate */
+  revokedAt?: string | null;
+  revokeReason?: string | null;
 }
 
 export interface BlogPost {

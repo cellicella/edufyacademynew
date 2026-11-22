@@ -73,6 +73,7 @@ import { AdminBundlesPage } from './pages/admin/AdminBundlesPage';
 import { AdminLessonImporterPage } from './pages/admin/AdminLessonImporterPage';
 import { AdminInstructorsPage } from './pages/admin/AdminInstructorsPage';
 import { AdminStudentsPage } from './pages/admin/AdminStudentsPage';
+import { AdminCertificatesPage } from './pages/admin/AdminCertificatesPage';
 import { AdminNotificationsPage } from './pages/admin/AdminNotificationsPage';
 import { AdminBannersPage } from './pages/admin/AdminBannersPage';
 import { AdminOffersPage } from './pages/admin/AdminOffersPage';
@@ -206,6 +207,7 @@ export default function App() {
                 <Route path="lesson-import" element={<AdminLessonImporterPage />} />
                 <Route path="instructors" element={<AdminInstructorsPage />} />
                 <Route path="students" element={<AdminStudentsPage />} />
+                <Route path="certificates" element={<AdminCertificatesPage />} />
                 <Route path="categories" element={<AdminCategoriesPage />} />
                 <Route path="blog" element={<AdminBlogPage />} />
                 <Route path="notifications" element={<AdminNotificationsPage />} />

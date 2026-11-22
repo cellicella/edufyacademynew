@@ -405,7 +405,8 @@ export function postLd(p: SeoPost) {
     ...(image ? { image } : {}),
     ...(p.publishedAt ? { datePublished: p.publishedAt } : {}),
     ...(p.updatedAt || p.publishedAt ? { dateModified: p.updatedAt || p.publishedAt } : {}),
-    author: p.authorName ? { '@type': 'Person', name: p.authorName } : { '@id': `${SITE_URL}/#organization` },
+    // A post without a named person (the app shows "Edufy Academy") is credited to the organisation, not a Person
+    author: p.authorName && p.authorName.trim() !== SITE_NAME ? { '@type': 'Person', name: p.authorName.trim() } : { '@id': `${SITE_URL}/#organization` },
     publisher: { '@id': `${SITE_URL}/#organization` },
   };
 }

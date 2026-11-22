@@ -6,6 +6,7 @@ import { ApiStatusBanner } from '../components/admin/ApiStatusBanner';
 import { useAuth } from '../context/AuthContext';
 import {
   ShieldAlert,
+  Award,
   Users,
   BookCheck,
   TrendingUp,
@@ -48,6 +49,7 @@ export const AdminLayout: React.FC = () => {
     { label: 'Banners', href: '/admin/settings/website-banners', icon: GalleryHorizontal },
     { label: 'Instructors', href: '/admin/instructors', icon: GraduationCap },
     { label: 'Students', href: '/admin/students', icon: UsersRound },
+    { label: 'Certificates', href: '/admin/certificates', icon: Award },
     { label: 'All users', href: '/admin/users', icon: Users },
     { label: 'Reports', href: '/admin/reports', icon: Sliders },
     { label: 'Settings & Configuration', href: '/admin/settings', icon: SettingsIcon },

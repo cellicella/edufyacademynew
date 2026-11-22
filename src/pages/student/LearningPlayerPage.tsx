@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { courseService, certificateService, storageService } from '../../services/api';
 import { Course, Lesson, CourseSection, Certificate } from '../../types';
@@ -6,7 +6,8 @@ import { useCourseProgress } from '../../context/CourseProgressContext';
 import { AdiloPlayer } from '../../components/student/AdiloPlayer';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
-import { EdufyLogo } from '../../components/common/EdufyLogo';
+import { CertificateFrame } from '../../components/certificate/CertificateDocument';
+import { siteUrl } from '../../lib/siteUrl';
 import {
   Play,
   Pause,
@@ -83,6 +84,26 @@ export const LearningPlayerPage: React.FC = () => {
     });
   }, [courseId]);
 
+  // Issue the certificate automatically as soon as every lesson is complete (the API re-checks
+  // enrolment and completion, and returns the existing certificate instead of issuing twice).
+  const autoClaimedFor = useRef<string | null>(null);
+  const certProgress = course ? getCourseProgressPercent(course.id, course.totalLessons) : 0;
+  const certEnrolled = course ? isEnrolled(course.id) : false;
+  useEffect(() => {
+    if (!course || certProgress < 100 || !certEnrolled || autoClaimedFor.current === course.id) return;
+    autoClaimedFor.current = course.id;
+    certificateService.claimCertificate(course.id).then((res) => {
+      if (res.success && res.certificate) {
+        setClaimedCert(res.certificate);
+        if (!res.alreadyIssued) {
+          setShowCertModal(true);
+          showToast('Your certificate is ready.', 'success');
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [course, certProgress, certEnrolled]);
+
   if (!course || !currentLesson) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-sm">
@@ -113,15 +134,13 @@ export const LearningPlayerPage: React.FC = () => {
   const handleClaimCertificate = async () => {
     if (!course) return;
     setClaimingCert(true);
-    showToast('Verifying curriculum completion & issuing credential...', 'info');
     const res = await certificateService.claimCertificate(course.id);
     setClaimingCert(false);
     if (res.success && res.certificate) {
       setClaimedCert(res.certificate);
       setShowCertModal(true);
-      showToast('Accredited diploma conferred successfully!', 'success');
     } else {
-      showToast(res.error || 'Failed to claim certificate. Please complete all lessons.', 'error');
+      showToast(res.error || 'Complete every lesson to get your certificate.', 'error');
     }
   };
 
@@ -452,26 +471,28 @@ export const LearningPlayerPage: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs uppercase font-extrabold tracking-wider text-amber-300">
-                        Milestone Achieved
+                        Course complete
                       </span>
-                      <span className="text-[12px] bg-white/20 px-2 py-0.5 rounded-full font-bold">100% Complete</span>
+                      <span className="text-[12px] bg-white/20 px-2 py-0.5 rounded-full font-bold">100%</span>
                     </div>
                     <h3 className="font-display text-base font-bold text-white mt-0.5">
-                      Ready to Claim Official Certificate
+                      {claimedCert ? 'Your certificate is ready' : 'Get your certificate of completion'}
                     </h3>
                     <p className="text-xs text-blue-100">
-                      All lectures and proctored segments are verified. Issue your tamper-proof credential to your profile.
+                      {claimedCert
+                        ? 'Preview it, download it as a PDF and add it to your LinkedIn profile.'
+                        : 'You have completed every lesson in this course.'}
                     </p>
                   </div>
                 </div>
 
                 <button
-                  onClick={handleClaimCertificate}
+                  onClick={() => (claimedCert ? navigate(`/student/certificates?open=${encodeURIComponent(claimedCert.id)}`) : handleClaimCertificate())}
                   disabled={claimingCert}
                   className="px-5 py-2.5 text-xs font-bold text-[#004AAD] bg-white hover:bg-blue-50 rounded-xl shadow-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 self-stretch sm:self-auto justify-center"
                 >
                   <Award className="w-4 h-4 text-[#004AAD]" />
-                  <span>{claimingCert ? 'Minting Credential...' : 'Claim Official Certificate'}</span>
+                  <span>{claimingCert ? 'Issuing certificate…' : claimedCert ? 'View certificate' : 'Get certificate'}</span>
                 </button>
               </div>
             )}
@@ -717,7 +738,7 @@ export const LearningPlayerPage: React.FC = () => {
       {/* Conferred Digital Diploma Modal */}
       {showCertModal && claimedCert && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative border border-[#E2E8F0] space-y-6">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-[#E2E8F0] space-y-5 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <button
               onClick={() => setShowCertModal(false)}
               className="absolute top-4 right-4 p-1.5 text-[#64748B] hover:text-[#111827] rounded-lg hover:bg-slate-100"
@@ -730,47 +751,35 @@ export const LearningPlayerPage: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
                 <Award className="w-6 h-6" />
               </div>
-              <h3 className="font-display text-xl font-bold text-[#111827]">
-                Official Diploma Conferred!
-              </h3>
-              <p className="text-xs text-[#64748B]">
-                Your certificate has been permanently signed and registered in the public registry.
+              <h3 className="font-display text-xl font-bold text-[#111827]">Congratulations! Your certificate is ready</h3>
+              <p className="text-sm text-[#64748B]">
+                Certificate ID <span className="font-mono text-[#004AAD]">{claimedCert.certificateCode}</span>
               </p>
             </div>
 
-            <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50/50 rounded-2xl border border-[#E2E8F0] space-y-4 text-center">
-              <EdufyLogo size="sm" className="justify-center" />
-              <div className="text-[12px] uppercase font-bold text-[#64748B] tracking-wider">
-                Certificate Identifier: <span className="font-mono text-[#004AAD]">{claimedCert.certificateCode}</span>
-              </div>
-              <div className="font-display text-lg font-bold text-[#004AAD]">
-                {claimedCert.studentName}
-              </div>
-              <p className="text-xs text-[#64748B]">has demonstrated verified mastery in</p>
-              <div className="font-bold text-sm text-[#111827]">{claimedCert.courseTitle}</div>
-              <div className="pt-2 text-[13px] text-[#64748B] flex justify-center gap-6 border-t border-[#E2E8F0]">
-                <span>Issued: <strong>{claimedCert.issueDate}</strong></span>
-                <span>Score: <strong className="text-emerald-600">{claimedCert.gradeScore}%</strong></span>
+            <div className="rounded-xl bg-[#EEF1F7] p-2.5">
+              <div className="shadow-md overflow-hidden rounded-sm">
+                <CertificateFrame certificate={claimedCert} siteUrl={siteUrl()} />
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
               <Link
-                to="/verify-certificate"
+                to={`/verify-certificate?code=${encodeURIComponent(claimedCert.certificateCode)}`}
                 target="_blank"
                 className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-[#004AAD] bg-[#EBF3FF] hover:bg-blue-100 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
               >
-                <span>Verify Public Credential</span>
+                <span>Verification page</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
               <button
                 onClick={() => {
                   setShowCertModal(false);
-                  navigate('/student/certificates');
+                  navigate(`/student/certificates?open=${encodeURIComponent(claimedCert.id)}`);
                 }}
                 className="w-full sm:w-auto px-4 py-2.5 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors"
               >
-                View in My Certificates
+                Download or share
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { Course, Instructor, BlogPost, Certificate, Quiz, Bundle } from '../type
 import { gradeQuizSubmission, QuizEvaluationResult } from '../utils/courseUtils';
 import { supabase, isSupabaseConfigured, getAuthToken } from '../lib/supabase';
 import { readJson } from '../lib/http';
+import { COURSES_PER_PAGE, pageRange, sanitizeSearch } from '../lib/pagination';
 import { categoryService, blogPublicService } from './content';
 
 /**
@@ -145,8 +146,15 @@ function mapSupabaseCourse(item: any): Course {
           }),
       })),
     reviews: [],
-    lastUpdated: 'Recently updated',
+    lastUpdated: formatMonthYear(item.updated_at) || 'Recently updated',
   };
+}
+
+/** "November 2026" from a timestamp; '' when missing or invalid. */
+function formatMonthYear(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
 export const courseService = {
@@ -195,8 +203,9 @@ export const courseService = {
           query = query.ilike('level', filters.level);
         }
 
-        if (filters?.search) {
-          query = query.or(`title.ilike.%${filters.search}%,subtitle.ilike.%${filters.search}%`);
+        const searchTerm = sanitizeSearch(filters?.search || '');
+        if (searchTerm) {
+          query = query.or(`title.ilike.%${searchTerm}%,subtitle.ilike.%${searchTerm}%`);
         }
 
         const { data, error } = await query;
@@ -240,6 +249,64 @@ export const courseService = {
     }
 
     return [];
+  },
+
+  /**
+   * One page of the published catalogue, filtered, sorted and paginated in the database
+   * (12 per page by default). Returns the page's courses and the total number of matches.
+   * The "Special offers" filter compares two columns, which the database API can't express,
+   * so that one filter is applied here before slicing the page.
+   */
+  async getCoursesPage(
+    filters: { category?: string; level?: string; search?: string; sort?: string; priceFilter?: string },
+    page: number,
+    perPage = COURSES_PER_PAGE,
+  ): Promise<{ courses: Course[]; total: number }> {
+    if (!isSupabaseConfigured) return { courses: [], total: 0 };
+
+    if (filters.priceFilter === 'discounted') {
+      const all = await courseService.getAllCourses(filters);
+      const { from, to } = pageRange(page, perPage);
+      return { courses: all.slice(from, to + 1), total: all.length };
+    }
+
+    let query = supabase
+      .from('courses')
+      .select(
+        `*,
+        course_sections ( id, title, section_order, lessons ( id, title, duration_minutes, type, video_url, is_free_preview, lesson_order ) ),
+        profiles:instructor_id ( id, full_name, avatar_url, headline, bio )`,
+        { count: 'exact' },
+      )
+      .eq('is_published', true);
+
+    if (filters.category && filters.category !== 'all') query = query.eq('category_slug', filters.category);
+    if (filters.level && filters.level !== 'all') query = query.ilike('level', filters.level);
+    const term = sanitizeSearch(filters.search || '');
+    if (term) query = query.or(`title.ilike.%${term}%,subtitle.ilike.%${term}%`);
+    if (filters.priceFilter === 'under-35') query = query.lt('price', 35);
+
+    // Same orderings as before, made deterministic (created_at, then id) so pages never repeat or skip a course.
+    const sort = filters.sort || 'popular';
+    if (sort === 'highest-rated') query = query.order('rating', { ascending: false, nullsFirst: false });
+    else if (sort === 'price-low') query = query.order('price', { ascending: true });
+    else if (sort === 'price-high') query = query.order('price', { ascending: false });
+    else query = query.order('enrolled_count', { ascending: false, nullsFirst: false });
+    query = query.order('created_at', { ascending: true }).order('id', { ascending: true });
+
+    const { from, to } = pageRange(page, perPage);
+    const { data, error, count } = await query.range(from, to);
+    if (error) {
+      // Asking for a page past the end returns "range not satisfiable": report the total so the page can step back.
+      if ((error as { code?: string }).code === 'PGRST103') {
+        const head = await courseService.getCoursesPage(filters, 1, perPage);
+        return { courses: [], total: head.total };
+      }
+      console.warn('[Edufy API] Course page query error:', error);
+      return { courses: [], total: 0 };
+    }
+    const courses = (await attachCurriculumOutline(data || [])).map(mapSupabaseCourse);
+    return { courses, total: count ?? courses.length };
   },
 
   async getCourseById(id: string): Promise<Course | null> {
@@ -716,114 +783,170 @@ export const blogService = {
   },
 };
 
+/** Maps a certificates row (or verification result) to the app's Certificate shape. */
+export function mapCertificateRow(c: any): Certificate {
+  return {
+    id: c.id || c.certificate_code,
+    certificateCode: c.certificate_code,
+    studentName: c.student_name,
+    studentId: c.user_id || '',
+    courseTitle: c.course_title,
+    courseId: c.course_id || '',
+    instructorName: c.instructor_name,
+    issueDate: c.issue_date,
+    gradeScore: c.grade_percentage || 100,
+    verificationHash: c.verification_hash || '',
+    courseHours: c.course_hours != null ? Number(c.course_hours) : null,
+    revokedAt: c.revoked_at || (c.status === 'revoked' ? 'revoked' : null),
+    revokeReason: c.revoke_reason || null,
+  };
+}
+
+/** A certificate as listed in Admin → Certificates (with the student's account email). */
+export interface AdminCertificate extends Certificate {
+  studentEmail: string | null;
+  createdAt: string;
+}
+
+export interface CertificateAuditEntry {
+  id: number;
+  action: 'issued' | 'revoked' | 'reinstated';
+  reason: string | null;
+  actorName: string | null;
+  createdAt: string;
+}
+
+/** PostgREST "function/column does not exist" errors: the certificates migration hasn't been applied yet. */
+const isMissingDbObject = (error: { code?: string } | null | undefined) =>
+  !!error && ['PGRST202', 'PGRST204', '42883', '42703', '42P01', 'PGRST205'].includes(String(error.code || ''));
+
 export const certificateService = {
   /**
-   * Verify certificate credential publicly through backend API
+   * Public verification by certificate code. Uses the verify_certificate database function
+   * (returns only what a verifier needs); falls back to the API when the function isn't installed.
    */
-  async verifyCertificate(code: string): Promise<{ valid: boolean; certificate: Certificate | null; error?: string }> {
-    try {
-      const res = await fetch(`/api/certificates/verify/${encodeURIComponent(code)}`);
-      const data = await readJson(res);
-      if (res.ok && data.valid && data.certificate) {
-        const cert = data.certificate;
-        return {
-          valid: true,
-          certificate: {
-            id: cert.id || cert.certificate_code || cert.certificateCode,
-            certificateCode: cert.certificate_code || cert.certificateCode,
-            studentName: cert.student_name || cert.studentName,
-            studentId: cert.user_id || '',
-            courseTitle: cert.course_title || cert.courseTitle,
-            courseId: cert.course_id || '',
-            instructorName: cert.instructor_name || cert.instructorName,
-            issueDate: cert.issue_date || cert.issueDate,
-            gradeScore: cert.grade_percentage || cert.gradeScore || 100,
-            verificationHash: cert.verification_hash || cert.verificationHash,
-          },
-        };
+  async verifyCertificate(code: string): Promise<{ valid: boolean; certificate: Certificate | null; revoked?: boolean; error?: string }> {
+    const clean = code.trim().toUpperCase();
+    const notFound = { valid: false, certificate: null, error: 'No certificate matches this ID. Check the ID printed at the bottom left of the certificate.' };
+    if (!clean) return notFound;
+
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.rpc('verify_certificate', { p_code: clean });
+      if (!error) {
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) return notFound;
+        const certificate = mapCertificateRow(row);
+        const revoked = row.status === 'revoked';
+        return { valid: !revoked, revoked, certificate };
       }
-      return {
-        valid: false,
-        certificate: null,
-        error: data.error || 'No verified record found matching this credential identifier.',
-      };
+      if (!isMissingDbObject(error)) return { ...notFound, error: 'Verification is unavailable right now. Please try again in a minute.' };
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/certificates/verify/${encodeURIComponent(clean)}`);
+      const data = await readJson(res);
+      if (res.ok && data.certificate) {
+        const certificate = mapCertificateRow(data.certificate);
+        const revoked = data.certificate.status === 'revoked' || !!data.certificate.revoked_at;
+        return { valid: !revoked && data.valid !== false, revoked, certificate };
+      }
+      return notFound;
     } catch {
-      return {
-        valid: false,
-        certificate: null,
-        error: 'No verified record found matching this credential identifier.',
-      };
+      return { ...notFound, error: 'Verification is unavailable right now. Please try again in a minute.' };
     }
   },
 
   /**
-   * Claim certificate once course is 100% completed
+   * Issue (or return the already-issued) certificate for a completed course.
+   * The API checks enrolment and that every lesson is complete; it never issues twice.
    */
-  async claimCertificate(courseId: string): Promise<{ success: boolean; certificate?: Certificate; error?: string }> {
+  async claimCertificate(courseId: string): Promise<{ success: boolean; certificate?: Certificate; alreadyIssued?: boolean; error?: string }> {
     try {
       const token = await getAuthToken();
-      const res = await fetch('/api/certificates/claim', {
+      if (!token) return { success: false, error: 'Sign in to get your certificate.' };
+      const res = await fetch(`${API_BASE_URL}/certificates/claim`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ courseId }),
       });
-
       const data = await readJson(res);
       if (res.ok && data.success && data.certificate) {
-        const c = data.certificate;
-        return {
-          success: true,
-          certificate: {
-            id: c.id || c.certificate_code,
-            certificateCode: c.certificate_code || c.certificateCode,
-            studentName: c.student_name || c.studentName,
-            studentId: c.user_id || '',
-            courseTitle: c.course_title || c.courseTitle,
-            courseId: c.course_id || courseId,
-            instructorName: c.instructor_name || c.instructorName,
-            issueDate: c.issue_date || c.issueDate,
-            gradeScore: c.grade_percentage || c.gradeScore || 100,
-            verificationHash: c.verification_hash || c.verificationHash,
-          },
-        };
+        return { success: true, alreadyIssued: !!data.alreadyIssued, certificate: mapCertificateRow({ course_id: courseId, ...data.certificate }) };
       }
-      return { success: false, error: data.error || 'Failed to claim certificate.' };
+      return { success: false, error: data.error || 'Could not issue the certificate.' };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      return { success: false, error: err?.message || 'Could not issue the certificate.' };
     }
   },
 
+  /** The signed-in student's own certificates, newest first. */
   async getStudentCertificates(studentId: string): Promise<Certificate[]> {
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('certificates')
-          .select('*')
-          .eq('user_id', studentId);
-
-        if (!error && data) {
-          return data.map((c) => ({
-            id: c.id,
-            certificateCode: c.certificate_code,
-            studentName: c.student_name,
-            studentId: c.user_id,
-            courseTitle: c.course_title,
-            courseId: c.course_id,
-            instructorName: c.instructor_name,
-            issueDate: c.issue_date,
-            gradeScore: c.grade_percentage || 100,
-            verificationHash: c.verification_hash,
-          }));
-        }
-      } catch (err) {
-        console.warn('[Certificates] Supabase fetch error:', err);
-      }
+    if (!isSupabaseConfigured) return [];
+    const { data, error } = await supabase
+      .from('certificates')
+      .select('*')
+      .eq('user_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('[Certificates] Could not load certificates:', error.message);
+      return [];
     }
+    return (data || []).map(mapCertificateRow);
+  },
 
-    return [];
+  /** Admin: issued certificates, newest first, optionally filtered by student, course or certificate ID. */
+  async adminListCertificates(search = ''): Promise<AdminCertificate[]> {
+    if (!isSupabaseConfigured) return [];
+    let q = supabase
+      .from('certificates')
+      .select('*, profiles:user_id ( email, full_name )')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    const term = search.trim().replace(/[%,()*\\]/g, ' ').trim();
+    if (term) {
+      q = q.or(`student_name.ilike.%${term}%,course_title.ilike.%${term}%,certificate_code.ilike.%${term}%`);
+    }
+    const { data, error } = await q;
+    if (error) throw new Error(`Could not load certificates: ${error.message}`);
+    return (data || []).map((row: any) => ({
+      ...mapCertificateRow(row),
+      studentEmail: row.profiles?.email || null,
+      createdAt: row.created_at,
+    }));
+  },
+
+  /** Admin: revoke (reason required) or reinstate a certificate. Recorded in the audit trail. */
+  async adminSetRevoked(certificateId: string, revoked: boolean, reason: string): Promise<Certificate> {
+    const { data, error } = await supabase.rpc('set_certificate_revoked', {
+      p_certificate_id: certificateId,
+      p_revoked: revoked,
+      p_reason: reason || null,
+    });
+    if (error) {
+      if (isMissingDbObject(error)) throw new Error('Revoking needs the certificates database update. Apply supabase/migrations/20261122000001_certificates_revocation.sql first.');
+      throw new Error(error.message);
+    }
+    return mapCertificateRow(data);
+  },
+
+  /** Admin: the audit trail of one certificate, newest first. */
+  async adminGetAudit(certificateId: string): Promise<CertificateAuditEntry[]> {
+    const { data, error } = await supabase
+      .from('certificate_audit')
+      .select('id, action, reason, created_at, actor:actor_id ( full_name, email )')
+      .eq('certificate_id', certificateId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      if (isMissingDbObject(error)) return [];
+      throw new Error(`Could not load the audit trail: ${error.message}`);
+    }
+    return (data || []).map((r: any) => ({
+      id: r.id,
+      action: r.action,
+      reason: r.reason,
+      actorName: r.actor?.full_name || r.actor?.email || null,
+      createdAt: r.created_at,
+    }));
   },
 };
 
@@ -1042,7 +1165,7 @@ export const paymentService = {
   async getPaymentHistory(): Promise<PaymentRecord[]> {
     try {
       const token = await getAuthToken();
-      const res = await fetch('/api/payments/history', {
+      const res = await fetch(`${API_BASE_URL}/payments/history`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -1061,7 +1184,7 @@ export const storageService = {
   async getDownloadUrl(courseId: string, filePath: string): Promise<string | null> {
     try {
       const token = await getAuthToken();
-      const res = await fetch('/api/storage/signed-url', {
+      const res = await fetch(`${API_BASE_URL}/storage/signed-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

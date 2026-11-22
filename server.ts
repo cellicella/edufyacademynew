@@ -643,6 +643,14 @@ app.get('/api/payments/history', async (req: Request, res: Response) => {
   }
 });
 
+/** Unguessable certificate ID, e.g. EDFY-2026-7KQ4-M9XT-2HDP (60 random bits, no look-alike characters). */
+function newCertificateCode(): string {
+  const alphabet = '23456789ABCDEFGHJKMNPQRSTVWXYZ'; // 30 symbols: no 0/O, 1/I/L, U
+  const bytes = crypto.randomBytes(12);
+  const chars = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+  return `EDFY-${new Date().getFullYear()}-${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8, 12)}`;
+}
+
 /**
  * 4. Claim / Generate Verified Certificate
  * POST /api/certificates/claim
@@ -666,7 +674,7 @@ app.post('/api/certificates/claim', async (req: Request, res: Response) => {
     // Verify course exists
     const { data: course } = await supabaseAdmin
       .from('courses')
-      .select('title, total_lessons, instructor_id, profiles(full_name)')
+      .select('title, total_lessons, duration_hours, instructor_id, profiles(full_name)')
       .eq('id', courseId)
       .single();
 
@@ -726,29 +734,37 @@ app.post('/api/certificates/claim', async (req: Request, res: Response) => {
       .eq('id', user.id)
       .single();
 
-    const studentName = profile?.full_name || user.user_metadata?.full_name || 'Edufy Graduate';
-    const instructorName = (course as any).profiles?.full_name || 'Edufy Master Faculty';
-    const certCode = `EDFY-${new Date().getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    // The certificate carries the student's real name; never a placeholder.
+    const studentName = String(profile?.full_name || user.user_metadata?.full_name || '').trim();
+    if (!studentName) {
+      return res.status(400).json({ error: 'Add your full name in your profile first. It is printed on your certificate.' });
+    }
+    const instructorName = String((course as any).profiles?.full_name || '').trim() || 'Edufy Academy';
+    const certCode = newCertificateCode();
+    const courseHours = Number((course as any).duration_hours) > 0 ? Math.round(Number((course as any).duration_hours) * 10) / 10 : null;
     const verificationHash = crypto
       .createHash('sha256')
       .update(`${certCode}:${user.id}:${courseId}:${studentName}`)
       .digest('hex');
 
-    const { data: newCert, error: certError } = await supabaseAdmin
-      .from('certificates')
-      .insert({
-        certificate_code: certCode,
-        user_id: user.id,
-        course_id: courseId,
-        student_name: studentName,
-        course_title: course.title,
-        instructor_name: instructorName,
-        issue_date: new Date().toISOString().split('T')[0],
-        grade_percentage: progressPercent || 100,
-        verification_hash: verificationHash,
-      })
-      .select()
-      .single();
+    const certRow: Record<string, unknown> = {
+      certificate_code: certCode,
+      user_id: user.id,
+      course_id: courseId,
+      student_name: studentName,
+      course_title: course.title,
+      instructor_name: instructorName,
+      issue_date: new Date().toISOString().split('T')[0],
+      grade_percentage: progressPercent || 100,
+      verification_hash: verificationHash,
+      course_hours: courseHours,
+    };
+    let { data: newCert, error: certError } = await supabaseAdmin.from('certificates').insert(certRow).select().single();
+    if (certError && ['PGRST204', '42703'].includes(String((certError as any).code))) {
+      // course_hours column not added yet (certificates migration pending): issue without it
+      delete certRow.course_hours;
+      ({ data: newCert, error: certError } = await supabaseAdmin.from('certificates').insert(certRow).select().single());
+    }
 
     if (certError) {
       // Two simultaneous claims: the unique (user_id, course_id) index rejects the second insert
@@ -785,7 +801,7 @@ app.get('/api/certificates/verify/:code', async (req: Request, res: Response) =>
       // Public endpoint: return only what a verifier needs (no internal user id)
       const { data: cert, error } = await supabaseAdmin
         .from('certificates')
-        .select('id, certificate_code, course_id, student_name, course_title, instructor_name, issue_date, grade_percentage, verification_hash, created_at')
+        .select('*')
         .eq('certificate_code', code)
         .maybeSingle();
 
@@ -796,7 +812,23 @@ app.get('/api/certificates/verify/:code', async (req: Request, res: Response) =>
         });
       }
 
-      return res.json({ valid: true, certificate: cert });
+      // Return only what a verifier needs: no user id, verification hash or revocation reason
+      const revoked = !!(cert as any).revoked_at;
+      return res.json({
+        valid: !revoked,
+        certificate: {
+          certificate_code: cert.certificate_code,
+          course_id: cert.course_id,
+          student_name: cert.student_name,
+          course_title: cert.course_title,
+          instructor_name: cert.instructor_name,
+          issue_date: cert.issue_date,
+          grade_percentage: cert.grade_percentage,
+          course_hours: (cert as any).course_hours ?? null,
+          status: revoked ? 'revoked' : 'valid',
+          revoked_at: (cert as any).revoked_at ?? null,
+        },
+      });
     }
 
     return res.status(404).json({ valid: false, error: 'Certificate credential code not recognized.' });

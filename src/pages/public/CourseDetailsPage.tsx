@@ -13,26 +13,117 @@ import {
   BookOpen,
   Award,
   Globe,
-  CheckCircle,
+  CheckCircle2,
   Heart,
   PlayCircle,
   ShoppingBag,
-  Lock,
   ChevronDown,
   ShieldCheck,
-  Share2,
   FileText,
   Play,
   X,
+  CalendarDays,
+  Target,
+  Users,
+  ListChecks,
+  MonitorSmartphone,
 } from 'lucide-react';
 import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
 import { CoursePurchaseButton, CtaStrip, PriceInline, StickyPurchaseBar } from '../../components/course/CoursePurchase';
 import { InstructorSpotlight } from '../../components/course/InstructorSpotlight';
 import { displayInstructor } from '../../config/leadInstructor';
-import { useResumePurchase, useStartCoursePurchase } from '../../hooks/usePurchaseFlow';
+import { useResumePurchase } from '../../hooks/usePurchaseFlow';
 import { useSeo } from '../../lib/seo';
 import { trackViewContent } from '../../lib/metaEvents';
+import { formatINR } from '../../utils/currency';
 import { SeoCourse, breadcrumbLd, courseLd, coursePath, courseSeo, readableTitle } from '../../seo/seoConfig';
+
+/** Column classes written out in full so Tailwind generates them. */
+const FACT_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' };
+
+/** Smooth-scrolls to a section (instant when the visitor prefers reduced motion). */
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+}
+
+/**
+ * The full course thumbnail at 16:9, never cropped: the image is contained, and a soft blurred copy of
+ * the same image fills any letterbox space when an upload isn't exactly 16:9.
+ */
+const CourseThumbnail: React.FC<{
+  course: Course;
+  sizes: string;
+  hasPreview: boolean;
+  onPreview: () => void;
+  priority?: boolean;
+  /** Tailwind radius class for the frame */
+  radius?: string;
+}> = ({ course, sizes, hasPreview, onPreview, priority, radius = 'rounded-[20px]' }) => {
+  const [failed, setFailed] = useState(false);
+  const src = course.thumbnail && !failed ? cdnImage(course.thumbnail, 960) : '';
+  const srcSet = course.thumbnail && !failed ? cdnSrcSet(course.thumbnail, [480, 640, 960, 1280]) : undefined;
+  const inner = (
+    <>
+      {src ? (
+        <>
+          <img src={src} alt="" aria-hidden="true" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" />
+          <img
+            src={src}
+            srcSet={srcSet}
+            sizes={sizes}
+            alt={course.title}
+            referrerPolicy="no-referrer"
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : undefined}
+            decoding="async"
+            onError={() => setFailed(true)}
+            className="relative w-full h-full object-contain"
+          />
+        </>
+      ) : (
+        <div className="relative w-full h-full flex items-center justify-center text-[#004AAD]">
+          <BookOpen className="w-12 h-12 opacity-40" />
+        </div>
+      )}
+      {hasPreview && (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/0 group-hover:bg-black/25 transition-colors">
+          <span className="w-16 h-16 rounded-full bg-white/95 text-[#004AAD] flex items-center justify-center shadow-xl motion-safe:group-hover:scale-105 transition-transform">
+            <Play className="w-7 h-7 ml-0.5 fill-current" />
+          </span>
+          <span className="text-[14px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">Preview this course</span>
+        </span>
+      )}
+    </>
+  );
+  const frame = `relative block w-full aspect-video overflow-hidden ${radius} bg-gradient-to-br from-[#EEF3FF] via-white to-[#F3EEFF] ring-1 ring-[#DCE4F5]`;
+  return hasPreview ? (
+    <button type="button" onClick={onPreview} aria-label={`Play preview of ${course.title}`} className={`group ${frame}`}>
+      {inner}
+    </button>
+  ) : (
+    <div className={frame}>{inner}</div>
+  );
+};
+
+const SectionCard: React.FC<{ id?: string; title: string; icon?: React.ElementType; children: React.ReactNode; aside?: React.ReactNode }> = ({ id, title, icon: Icon, children, aside }) => (
+  <section id={id} aria-labelledby={id ? `${id}-heading` : undefined} className="scroll-mt-28 bg-white p-6 sm:p-8 rounded-[24px] border border-[#E2E8F0]">
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <h2 id={id ? `${id}-heading` : undefined} className="font-display text-[22px] font-extrabold tracking-tight text-[#111827] flex items-center gap-2.5">
+        {Icon && (
+          <span className="w-9 h-9 rounded-xl bg-[#EEF3FF] text-[#004AAD] flex items-center justify-center">
+            <Icon className="w-[18px] h-[18px]" />
+          </span>
+        )}
+        {title}
+      </h2>
+      {aside}
+    </div>
+    {children}
+  </section>
+);
 
 export const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,21 +136,10 @@ export const CourseDetailsPage: React.FC = () => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [previewOpen]);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    'sec-1': true,
-  });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
-  const {
-    isInWishlist,
-    toggleWishlist,
-    initiateCourseEnrollment,
-    isEnrolled,
-    isProcessingPayment,
-    isInCart,
-    addToCart,
-    setIsCartOpen,
-  } = useCartWishlist();
+  const { isInWishlist, toggleWishlist, initiateCourseEnrollment, isEnrolled, isInCart, addToCart, setIsCartOpen } = useCartWishlist();
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
 
@@ -87,7 +167,6 @@ export const CourseDetailsPage: React.FC = () => {
   );
 
   // Guests are sent to sign in and come back here (?enroll=1) to continue the purchase once
-  const startPurchase = useStartCoursePurchase();
   useResumePurchase(
     'course',
     course?.id,
@@ -95,24 +174,16 @@ export const CourseDetailsPage: React.FC = () => {
     () => course && navigate(`/learn/${course.id}`)
   );
 
-
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     courseService.getCourseById(id).then((data) => {
       setCourse(data);
       if (data) {
-        // Expand first section by default
-        if (data.curriculum[0]) {
-          setExpandedSections({ [data.curriculum[0].id]: true });
-        }
-        // Fetch related
-        courseService
-          .getAllCourses({ category: data.categorySlug })
-          .then((related) => {
-            setRelatedCourses(related.filter((c) => c.id !== data.id).slice(0, 3));
-          });
-        // Fetch real reviews
+        if (data.curriculum[0]) setExpandedSections({ [data.curriculum[0].id]: true });
+        courseService.getAllCourses({ category: data.categorySlug }).then((related) => {
+          setRelatedCourses(related.filter((c) => c.id !== data.id).slice(0, 3));
+        });
         courseService.getCourseReviews(data.id).then(setCourseReviews);
       }
       setLoading(false);
@@ -129,8 +200,17 @@ export const CourseDetailsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-20 text-center text-sm text-[#64748B]">
-        Loading course curriculum...
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-12" aria-busy="true" aria-label="Loading course">
+        <div className="grid lg:grid-cols-12 gap-10 items-center">
+          <div className="lg:col-span-7 space-y-4">
+            <div className="h-7 w-40 rounded-full bg-slate-200 animate-pulse" />
+            <div className="h-12 w-full rounded-xl bg-slate-200 animate-pulse" />
+            <div className="h-12 w-4/5 rounded-xl bg-slate-200 animate-pulse" />
+            <div className="h-5 w-3/4 rounded bg-slate-100 animate-pulse" />
+            <div className="h-24 w-full rounded-2xl bg-slate-100 animate-pulse" />
+          </div>
+          <div className="lg:col-span-5 aspect-video rounded-[20px] bg-slate-200 animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -138,39 +218,43 @@ export const CourseDetailsPage: React.FC = () => {
   if (!course) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="font-display text-2xl font-bold text-[#111827]">Course Not Found</h2>
-        <p className="text-sm text-[#64748B]">The masterclass you requested could not be located in the catalog.</p>
-        <Link
-          to="/courses"
-          className="inline-block px-4 py-2 text-sm font-semibold text-white bg-[#004AAD] rounded-full"
-        >
-          Return to Marketplace
+        <h1 className="font-display text-2xl font-bold text-[#111827]">Course not found</h1>
+        <p className="text-sm text-[#64748B]">We couldn't find this course. It may have been moved or is no longer available.</p>
+        <Link to="/courses" className="inline-block px-5 py-2.5 text-sm font-semibold text-white bg-[#004AAD] rounded-full">
+          Browse all courses
         </Link>
       </div>
     );
   }
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }));
-  };
+  const toggleSection = (sectionId: string) => setExpandedSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
 
   const isFavorited = isInWishlist(course.id);
   const enrolled = isEnrolled(course.id);
   const instructor = displayInstructor(course.instructor);
   const discountPercent = calculateDiscountPercent(course.price, course.originalPrice);
-
-  const handleEnrollClick = async () => {
-    if (!course) return;
-    const success = await startPurchase(course);
-    if (success) {
-      navigate(`/learn/${course.id}`);
-    }
-  };
-
+  const savings = course.price > 0 && course.originalPrice > course.price ? course.originalPrice - course.price : 0;
   const hasPreview = !!resolveVideo(course.previewVideoUrl);
+  const allExpanded = course.curriculum.length > 0 && course.curriculum.every((s) => expandedSections[s.id]);
+  const descriptionParagraphs = (course.description || '')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const requirements = (course.requirements || []).filter(Boolean);
+  const audience = (course.targetAudience || []).filter(Boolean);
+  const outcomes = (course.learningOutcomes || []).filter(Boolean);
+  const facts = [
+    { k: 'Duration', v: course.durationHours > 0 ? formatDuration(course.durationHours) : '', icon: Clock },
+    { k: 'Lessons', v: course.totalLessons > 0 ? String(course.totalLessons) : '', icon: PlayCircle },
+    { k: 'Language', v: course.language || '', icon: Globe },
+    { k: 'Last updated', v: course.lastUpdated || '', icon: CalendarDays },
+  ].filter((f) => f.v);
+  const jumpLinks = [
+    outcomes.length > 0 && { id: 'learn', label: "What you'll learn" },
+    { id: 'curriculum', label: 'Curriculum' },
+    { id: 'instructor', label: 'Instructor' },
+    { id: 'reviews', label: 'Reviews' },
+  ].filter(Boolean) as Array<{ id: string; label: string }>;
 
   return (
     <div className="pb-24">
@@ -196,407 +280,363 @@ export const CourseDetailsPage: React.FC = () => {
           </div>
         </div>
       )}
-      {/* 1. Product hero — editorial, light, with framed preview */}
-      <section className="relative bg-[#F7F9FC] border-b border-[#E2E8F0]">
-        <div className="max-w-[1280px] mx-auto px-5 sm:px-8 pt-10 pb-14 lg:pt-14 lg:pb-20">
-          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[15px] text-[#64748B] mb-8">
+
+      {/* 1. Hero: course facts and purchase on the left, the full 16:9 thumbnail on the right */}
+      <section className="relative overflow-hidden border-b border-[#E2E8F0] bg-[radial-gradient(ellipse_at_top_right,#EEF0FF_0%,transparent_55%),radial-gradient(ellipse_at_bottom_left,#EAF2FF_0%,transparent_50%)] bg-[#F7F9FC]">
+        <div className="max-w-[1280px] mx-auto px-5 sm:px-8 pt-8 pb-12 lg:pt-12 lg:pb-16">
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[14px] text-[#64748B] mb-6 lg:mb-8">
             <Link to="/courses" className="hover:text-[#004AAD]">Courses</Link>
             <span aria-hidden="true">/</span>
-            <Link to={`/courses?category=${course.categorySlug}`} className="hover:text-[#004AAD]">{course.category}</Link>
-            <span aria-hidden="true">/</span>
-            <span className="text-[#111827] font-medium truncate max-w-[50vw]">{course.title}</span>
+            {course.category && (
+              <>
+                <Link to={`/courses?category=${encodeURIComponent(course.categorySlug)}`} className="hover:text-[#004AAD]">{course.category}</Link>
+                <span aria-hidden="true">/</span>
+              </>
+            )}
+            <span className="text-[#111827] font-medium truncate max-w-[60vw]">{course.title}</span>
           </nav>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-            <div className="lg:col-span-7">
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                <span className="h-8 px-3.5 inline-flex items-center rounded-full bg-[#E8EFFB] text-[14px] font-semibold text-[#003B8B]">{course.level}</span>
-                {course.bestseller && <span className="h-8 px-3.5 inline-flex items-center rounded-full bg-[#F1EAFE] text-[14px] font-semibold text-[#5E17EB]">Bestseller</span>}
-                {course.certificateOffered && <span className="h-8 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E2E8F0] text-[14px] font-medium text-[#334155]"><Award className="w-4 h-4 text-[#004AAD]" />Certificate of completion</span>}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
+            <div className="lg:col-span-5 lg:order-2">
+              <div className="rounded-[24px] p-1.5 bg-gradient-to-br from-[#5271FF]/40 via-white to-[#5E17EB]/30 shadow-[0_30px_70px_-35px_rgba(0,74,173,0.55)]">
+                <CourseThumbnail course={course} priority sizes="(min-width: 1280px) 500px, (min-width: 1024px) 40vw, 100vw" hasPreview={hasPreview} onPreview={() => setPreviewOpen(true)} />
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 lg:order-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-5">
+                {course.category && (
+                  <Link
+                    to={`/courses?category=${encodeURIComponent(course.categorySlug)}`}
+                    className="h-8 px-3.5 inline-flex items-center rounded-full bg-gradient-to-r from-[#004AAD] to-[#5E17EB] text-[13px] font-bold tracking-wide text-white hover:opacity-90"
+                  >
+                    {course.category}
+                  </Link>
+                )}
+                {course.level && <span className="h-8 px-3.5 inline-flex items-center rounded-full bg-[#E8EFFB] text-[13px] font-semibold text-[#003B8B]">{course.level}</span>}
+                {course.bestseller && <span className="h-8 px-3.5 inline-flex items-center rounded-full bg-[#F1EAFE] text-[13px] font-semibold text-[#5E17EB]">Bestseller</span>}
+                {course.certificateOffered && (
+                  <span className="h-8 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E2E8F0] text-[13px] font-medium text-[#334155]">
+                    <Award className="w-4 h-4 text-[#B8913A]" />Certificate of completion
+                  </span>
+                )}
               </div>
 
-              <h1 className="ed-display text-[2.25rem] sm:text-[2.75rem] lg:text-[3.25rem] leading-[1.08]">{course.title}</h1>
-              {course.subtitle && <p className="mt-6 text-[19px] sm:text-[20px] leading-[1.65] text-[#475569] max-w-2xl">{course.subtitle}</p>}
+              <h1 className="ed-display text-[2rem] sm:text-[2.6rem] lg:text-[3rem] leading-[1.08] [text-wrap:balance]">{course.title}</h1>
+              {course.subtitle && <p className="mt-4 text-[18px] sm:text-[19px] leading-[1.6] text-[#475569] max-w-2xl">{course.subtitle}</p>}
 
-              <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-5">
+              <div className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-4">
                 <div className="flex items-center gap-3">
                   <img src={cdnAvatar(instructor.avatar, 48)} alt="" width={48} height={48} referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
                   <div className="leading-tight">
                     <div className="text-[13px] text-[#64748B]">{instructor.isLead ? instructor.title : 'Instructor'}</div>
-                    <div className="text-[17px] font-semibold text-[#111827]">{instructor.name}</div>
+                    <button type="button" onClick={() => scrollToSection('instructor')} className="text-[16px] font-semibold text-[#111827] hover:text-[#004AAD]">
+                      {instructor.name}
+                    </button>
                   </div>
                 </div>
                 <CourseRating course={course} />
                 {course.enrolledCount > 0 && (
-                  <span className="text-[16px] text-[#475569] tabular-nums">{course.enrolledCount.toLocaleString('en-IN')} learners enrolled</span>
+                  <span className="text-[15px] text-[#475569] tabular-nums inline-flex items-center gap-1.5">
+                    <Users className="w-4 h-4" />
+                    {course.enrolledCount.toLocaleString('en-IN')} learners enrolled
+                  </span>
                 )}
               </div>
 
-              <dl className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-px bg-[#E2E8F0] rounded-[20px] overflow-hidden border border-[#E2E8F0]">
-                {[
-                  { k: 'Duration', v: formatDuration(course.durationHours), icon: Clock },
-                  { k: 'Lessons', v: String(course.totalLessons), icon: PlayCircle },
-                  { k: 'Language', v: course.language, icon: Globe },
-                  { k: 'Updated', v: course.lastUpdated, icon: Award },
-                ].map((m) => (
-                  <div key={m.k} className="bg-white px-5 py-4">
-                    <dt className="flex items-center gap-1.5 text-[14px] text-[#64748B]"><m.icon className="w-4 h-4" />{m.k}</dt>
-                    <dd className="mt-1 font-display text-[18px] font-bold text-[#111827] truncate">{m.v}</dd>
+              {facts.length > 0 && (
+                <dl className={`mt-7 grid grid-cols-2 ${FACT_COLS[Math.min(facts.length, 4)]} gap-px bg-[#E2E8F0] rounded-[18px] overflow-hidden border border-[#E2E8F0]`}>
+                  {facts.map((m) => (
+                    <div key={m.k} className="bg-white px-4 py-3.5">
+                      <dt className="flex items-center gap-1.5 text-[13px] text-[#64748B]"><m.icon className="w-4 h-4" />{m.k}</dt>
+                      <dd className="mt-1 font-display text-[17px] font-bold text-[#111827] truncate">{m.v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              {/* Price and purchase */}
+              <div className="mt-7 rounded-[20px] bg-white border border-[#E2E8F0] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 shadow-[0_12px_30px_-22px_rgba(17,24,39,0.35)]">
+                {enrolled ? (
+                  <div className="flex-1 text-[15px] font-semibold text-emerald-700 inline-flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" /> You're enrolled in this course
                   </div>
-                ))}
-              </dl>
-
-              {/* Purchase — top of the page */}
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
-                {!enrolled && <PriceInline course={course} />}
-                <CoursePurchaseButton course={course} />
-                {!enrolled && hasPreview && (
-                  <button type="button" onClick={() => setPreviewOpen(true)} className="ed-btn ed-btn-outlined">
-                    <Play className="w-4 h-4" /> Watch preview
-                  </button>
+                ) : (
+                  <div className="flex-1 min-w-0">
+                    <PriceInline course={course} />
+                    {savings > 0 && <div className="mt-1 text-[14px] font-semibold text-emerald-700">You save {formatINR(savings)}</div>}
+                  </div>
                 )}
-              </div>
-            </div>
-
-            <div className="lg:col-span-5">
-              <div className="ed-frame">
-                <div className="ed-frame-inner relative aspect-[4/3] overflow-hidden bg-[#E8EFFB]">
-                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <CoursePurchaseButton course={course} className="h-12 px-7 text-[15px]" />
+                  {!enrolled && hasPreview && (
+                    <button type="button" onClick={() => setPreviewOpen(true)} className="ed-btn ed-btn-outlined">
+                      <Play className="w-4 h-4" /> Preview
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleWishlist(course.id, course.title)}
+                    aria-pressed={isFavorited}
+                    aria-label={isFavorited ? 'Remove from wishlist' : 'Add to wishlist'}
+                    className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${
+                      isFavorited ? 'bg-[#F4EFFF] border-[#5E17EB] text-[#5E17EB]' : 'bg-white border-[#CBD5E1] text-[#475569] hover:bg-[#F8FAFC]'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${isFavorited ? 'fill-[#5E17EB]' : ''}`} />
+                  </button>
                 </div>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2" aria-label="Jump to section">
+                {jumpLinks.map((j) => (
+                  <button
+                    key={j.id}
+                    type="button"
+                    onClick={() => scrollToSection(j.id)}
+                    className="h-8 px-3.5 rounded-full text-[13px] font-semibold text-[#334155] bg-white/70 border border-[#E2E8F0] hover:border-[#5271FF] hover:text-[#004AAD] transition-colors"
+                  >
+                    {j.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Main Content Split */}
-      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 mt-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          {/* Left Column: Syllabus, Outcomes, Description, Instructor */}
-          <div className="lg:col-span-8 space-y-10">
-            {/* What you'll learn checklist */}
-            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0]">
-              <h2 className="font-display text-xl font-bold text-[#111827] mb-4">
-                What You'll Learn
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {course.learningOutcomes.map((outcome, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-[#111827] leading-relaxed">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span>{outcome}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
+      {/* 2. Course details + sticky purchase card */}
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 mt-10 lg:mt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+          <div className="lg:col-span-8 space-y-8 min-w-0">
+            {outcomes.length > 0 && (
+              <SectionCard id="learn" title="What you'll learn" icon={ListChecks}>
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {outcomes.map((outcome, idx) => (
+                    <li key={idx} className="flex items-start gap-3 rounded-2xl bg-[#F7F9FC] border border-[#EEF2F7] p-3.5 text-[15px] text-[#1F2937] leading-relaxed">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{outcome}</span>
+                    </li>
+                  ))}
+                </ul>
+              </SectionCard>
+            )}
 
-            {/* Course Curriculum Accordion */}
-            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E2E8F0] gap-2 mb-6">
-                <div>
-                  <h2 className="font-display text-xl font-bold text-[#111827]">
-                    Course Curriculum
-                  </h2>
-                  <div className="text-xs text-[#64748B] mt-1">
-                    {course.curriculum.length} modules · {course.totalLessons} lessons · {formatDuration(course.durationHours)} total length
-                  </div>
+            {descriptionParagraphs.length > 0 && (
+              <SectionCard id="description" title="Course description" icon={FileText}>
+                <div className="space-y-4 text-[16px] leading-[1.75] text-[#334155] max-w-[68ch]">
+                  {descriptionParagraphs.map((p, i) => (
+                    <p key={i} className="whitespace-pre-line">{p}</p>
+                  ))}
                 </div>
-                <button
-                  onClick={() => {
-                    const allExpanded = Object.keys(expandedSections).length === course.curriculum.length;
-                    if (allExpanded) {
-                      setExpandedSections({});
-                    } else {
-                      const all: Record<string, boolean> = {};
-                      course.curriculum.forEach((s) => (all[s.id] = true));
-                      setExpandedSections(all);
-                    }
-                  }}
-                  className="text-xs font-semibold text-[#004AAD] hover:underline self-start sm:self-auto"
-                >
-                  {Object.keys(expandedSections).length === course.curriculum.length
-                    ? 'Collapse all sections'
-                    : 'Expand all sections'}
-                </button>
-              </div>
+              </SectionCard>
+            )}
 
-              {/* Sections Accordion */}
+            <SectionCard
+              id="curriculum"
+              title="Course curriculum"
+              icon={BookOpen}
+              aside={
+                course.curriculum.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (allExpanded) setExpandedSections({});
+                      else setExpandedSections(Object.fromEntries(course.curriculum.map((s) => [s.id, true])));
+                    }}
+                    className="text-[13px] font-semibold text-[#004AAD] hover:underline"
+                  >
+                    {allExpanded ? 'Collapse all sections' : 'Expand all sections'}
+                  </button>
+                ) : null
+              }
+            >
+              <p className="-mt-2 mb-5 text-[14px] text-[#64748B]">
+                {course.curriculum.length} {course.curriculum.length === 1 ? 'section' : 'sections'} · {course.totalLessons} lessons
+                {course.durationHours > 0 ? ` · ${formatDuration(course.durationHours)} total length` : ''}
+              </p>
               <div className="space-y-3">
                 {course.curriculum.map((section, sIdx) => {
                   const isExpanded = !!expandedSections[section.id];
-                  const totalSecMins = section.lessons.reduce((acc, l) => acc + l.durationMinutes, 0);
-
+                  const totalSecMins = section.lessons.reduce((acc, l) => acc + (l.durationMinutes || 0), 0);
                   return (
-                    <div
-                      key={section.id}
-                      className="border border-[#E2E8F0] rounded-lg overflow-hidden transition-colors"
-                    >
+                    <div key={section.id} className={`border rounded-2xl overflow-hidden transition-colors ${isExpanded ? 'border-[#C9D7F2]' : 'border-[#E2E8F0]'}`}>
                       <button
+                        type="button"
                         onClick={() => toggleSection(section.id)}
-                        className="w-full bg-[#F8FAFC] hover:bg-[#F1F5F9] p-4 text-left flex items-center justify-between transition-colors"
+                        aria-expanded={isExpanded}
+                        className="w-full bg-[#F8FAFC] hover:bg-[#F1F5F9] p-4 text-left flex items-start justify-between gap-3 transition-colors"
                       >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <ChevronDown
-                            className={`w-4 h-4 mt-0.5 shrink-0 text-[#64748B] transition-transform duration-200 ${
-                              isExpanded ? 'rotate-180' : ''
-                            }`}
-                          />
-                          <span className="min-w-0">
-                            <span className="block font-display text-sm font-bold text-[#111827]">{section.title}</span>
-                            {section.description && <span className="block mt-0.5 text-[13px] font-normal text-[#64748B] leading-snug">{section.description}</span>}
+                        <span className="flex items-start gap-3 min-w-0">
+                          <span className="mt-0.5 w-7 h-7 shrink-0 rounded-lg bg-white border border-[#E2E8F0] text-[12px] font-bold text-[#004AAD] flex items-center justify-center tabular-nums">
+                            {sIdx + 1}
                           </span>
-                        </div>
-                        <div className="text-xs text-[#64748B] tabular-nums font-medium shrink-0 pl-3">
-                          {section.lessons.length} {section.lessons.length === 1 ? 'lesson' : 'lessons'} · {totalSecMins}m
-                        </div>
+                          <span className="min-w-0">
+                            <span className="block font-display text-[15px] font-bold text-[#111827]">{section.title}</span>
+                            {section.description && <span className="block mt-0.5 text-[13px] text-[#64748B] leading-snug">{section.description}</span>}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-3 shrink-0">
+                          <span className="hidden sm:inline text-[13px] text-[#64748B] tabular-nums font-medium">
+                            {section.lessons.length} {section.lessons.length === 1 ? 'lesson' : 'lessons'}
+                            {totalSecMins > 0 ? ` · ${totalSecMins} min` : ''}
+                          </span>
+                          <ChevronDown className={`w-5 h-5 text-[#64748B] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </span>
                       </button>
-
                       {isExpanded && (
-                        <div className="divide-y divide-[#E2E8F0] bg-white">
+                        <ul className="divide-y divide-[#EEF2F7] bg-white">
                           {section.lessons.map((lesson) => (
-                            <div
-                              key={lesson.id}
-                              className="p-3.5 px-5 flex items-center justify-between hover:bg-[#F8FAFC] transition-colors text-xs text-[#111827]"
-                            >
-                              <div className="flex items-center gap-3">
-                                {lesson.type === 'video' && (
+                            <li key={lesson.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 text-[14px] text-[#111827] hover:bg-[#FAFBFD]">
+                              <span className="flex items-center gap-3 min-w-0">
+                                {lesson.type === 'article' ? (
+                                  <FileText className="w-4 h-4 text-[#5271FF] shrink-0" />
+                                ) : lesson.type === 'quiz' ? (
+                                  <Award className="w-4 h-4 text-[#5E17EB] shrink-0" />
+                                ) : (
                                   <PlayCircle className="w-4 h-4 text-[#004AAD] shrink-0" />
                                 )}
-                                {lesson.type === 'article' && (
-                                  <FileText className="w-4 h-4 text-[#5271FF] shrink-0" />
-                                )}
-                                {lesson.type === 'quiz' && (
-                                  <Award className="w-4 h-4 text-[#5E17EB] shrink-0" />
-                                )}
                                 <span className="font-medium">{lesson.title}</span>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                {lesson.isFreePreview && (
-                                  <span className="text-[13px] font-semibold text-[#004AAD] bg-[#EBF3FF] px-2 py-0.5 rounded">
-                                    Preview
-                                  </span>
-                                )}
-                                <span className="text-[#64748B] tabular-nums">{lesson.durationMinutes}m</span>
-                              </div>
-                            </div>
+                              </span>
+                              <span className="flex items-center gap-3 shrink-0">
+                                {lesson.isFreePreview && <span className="text-[12px] font-semibold text-[#004AAD] bg-[#EBF3FF] px-2 py-0.5 rounded">Preview</span>}
+                                {lesson.durationMinutes > 0 && <span className="text-[#64748B] tabular-nums text-[13px]">{lesson.durationMinutes} min</span>}
+                              </span>
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       )}
                     </div>
                   );
                 })}
               </div>
-            </section>
+            </SectionCard>
 
             <CtaStrip
               course={course}
               heading="Ready to start learning?"
-              text={`${course.totalLessons} lessons · ${formatDuration(course.durationHours)} of video · learn at your own pace`}
+              text={`${course.totalLessons} lessons${course.durationHours > 0 ? ` · ${formatDuration(course.durationHours)} of video` : ''} · learn at your own pace`}
             />
 
-            {/* Requirements & Target Audience */}
-            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
-              <div>
-                <h3 className="font-display text-base font-bold text-[#111827] mb-3">
-                  Prerequisites
-                </h3>
-                <ul className="space-y-2 text-xs sm:text-sm text-[#64748B] list-disc list-inside">
-                  {course.requirements.map((req, i) => (
-                    <li key={i}>{req}</li>
-                  ))}
-                </ul>
+            {(requirements.length > 0 || audience.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {requirements.length > 0 && (
+                  <SectionCard id="requirements" title="Requirements" icon={Target}>
+                    <ul className="space-y-2.5">
+                      {requirements.map((req, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-[15px] text-[#334155] leading-relaxed">
+                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#5271FF] shrink-0" />
+                          <span>{req}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
+                )}
+                {audience.length > 0 && (
+                  <SectionCard id="audience" title="Who this course is for" icon={Users}>
+                    <ul className="space-y-2.5">
+                      {audience.map((aud, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-[15px] text-[#334155] leading-relaxed">
+                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#5E17EB] shrink-0" />
+                          <span>{aud}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
+                )}
               </div>
+            )}
 
-              <div className="pt-4 border-t border-[#E2E8F0]">
-                <h3 className="font-display text-base font-bold text-[#111827] mb-3">
-                  Who This Masterclass is For
-                </h3>
-                <ul className="space-y-2 text-xs sm:text-sm text-[#64748B] list-disc list-inside">
-                  {course.targetAudience.map((aud, i) => (
-                    <li key={i}>{aud}</li>
-                  ))}
-                </ul>
-              </div>
-            </section>
+            <div id="instructor" className="scroll-mt-28">
+              <InstructorSpotlight course={course} />
+            </div>
 
-            {/* Instructor */}
-            <InstructorSpotlight course={course} />
-
-            {/* Reviews Section */}
-            <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#E2E8F0] space-y-6">
-              <h2 className="font-display text-xl font-bold text-[#111827]">
-                Student Feedback & Reviews
-              </h2>
+            <SectionCard id="reviews" title="Student reviews" icon={Star}>
               {courseReviews.length === 0 ? (
-                <div className="py-6 text-center text-xs text-[#64748B] space-y-1">
-                  <Star className="w-6 h-6 text-amber-400 mx-auto opacity-40" />
-                  <p className="font-semibold text-[#111827]">No reviews submitted yet</p>
-                  <p>Be the first enrolled student to review this masterclass upon completing your modules.</p>
-                </div>
+                <p className="text-[15px] text-[#64748B]">This course has no reviews yet. Students can review it after enrolling.</p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {courseReviews.map((rev) => (
-                    <div key={rev.id} className="pt-4 first:pt-0 border-t first:border-0 border-[#E2E8F0] space-y-2">
-                      <div className="flex items-center justify-between">
+                    <div key={rev.id} className="pt-5 first:pt-0 border-t first:border-0 border-[#EEF2F7] space-y-2">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
-                          <img
-                            src={rev.userAvatar}
-                            alt={rev.userName}
-                            referrerPolicy="no-referrer"
-                            className="w-7 h-7 rounded-full object-cover"
-                          />
+                          <img src={rev.userAvatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100" />
                           <div>
-                            <div className="text-xs font-bold text-[#111827]">{rev.userName}</div>
+                            <div className="text-[14px] font-bold text-[#111827]">{rev.userName}</div>
                             <div className="text-[13px] text-[#64748B]">{rev.date}</div>
                           </div>
                         </div>
-                        <div className="flex items-center text-amber-500">
-                          {[...Array(rev.rating)].map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                        <div className="flex items-center text-amber-500" aria-label={`${rev.rating} out of 5 stars`}>
+                          {Array.from({ length: Math.max(0, Math.min(5, Number(rev.rating) || 0)) }, (_, i) => (
+                            <Star key={i} className="w-4 h-4 fill-current" />
                           ))}
                         </div>
                       </div>
-                      <p className="text-xs text-[#111827] leading-relaxed">
-                        {rev.comment}
-                      </p>
+                      <p className="text-[15px] text-[#334155] leading-relaxed">{rev.comment}</p>
                     </div>
                   ))}
                 </div>
               )}
-            </section>
-            {courseReviews.length > 0 && <CtaStrip course={course} heading="Join the learners taking this course" />}
+            </SectionCard>
           </div>
 
-          {/* Right Column: Sticky Enrollment Box */}
-          <div className="lg:col-span-4 lg:sticky lg:top-28 space-y-4">
-            <div className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-lg p-6 space-y-5">
-              {/* Thumbnail Container */}
-              {hasPreview ? (
-                <button
-                  type="button"
-                  onClick={() => setPreviewOpen(true)}
-                  aria-label={`Play preview of ${course.title}`}
-                  className="group aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900 relative block"
-                >
-                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-                  <span className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex flex-col items-center justify-center gap-2">
-                    <span className="w-14 h-14 rounded-full bg-white text-[#004AAD] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                      <Play className="w-6 h-6 ml-0.5 fill-current" />
-                    </span>
-                    <span className="text-[14px] font-semibold text-white drop-shadow">Preview this course</span>
-                  </span>
-                </button>
+          {/* Sticky purchase card (desktop) */}
+          <aside className="lg:col-span-4 lg:sticky lg:top-28 space-y-4" aria-label="Purchase this course">
+            <div className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-[0_24px_60px_-32px_rgba(17,24,39,0.35)] p-5 space-y-5">
+              <CourseThumbnail course={course} sizes="(min-width: 1024px) 360px, 100vw" hasPreview={hasPreview} onPreview={() => setPreviewOpen(true)} radius="rounded-[16px]" />
+
+              {enrolled ? (
+                <div className="text-[15px] font-semibold text-emerald-700 inline-flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" /> You're enrolled
+                </div>
               ) : (
-                <div className="aspect-[16/9] w-full rounded-lg overflow-hidden bg-slate-900">
-                  <img src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 400px, 100vw" alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                <div>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="font-display text-[32px] font-extrabold text-[#111827] tabular-nums">{course.price <= 0 ? 'Free' : formatINR(course.price)}</span>
+                    {course.price > 0 && course.originalPrice > course.price && <span className="text-[16px] text-[#94A3B8] line-through tabular-nums">{formatINR(course.originalPrice)}</span>}
+                    {discountPercent > 0 && <span className="text-[12px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{discountPercent}% OFF</span>}
+                  </div>
+                  {savings > 0 && <div className="text-[14px] font-semibold text-emerald-700 mt-1">You save {formatINR(savings)}</div>}
                 </div>
               )}
 
-              {/* Price & Savings */}
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-display text-3xl font-extrabold text-[#111827] tabular-nums">
-                    {course.price === 0 ? 'FREE' : `₹${course.price.toLocaleString('en-IN')}`}
-                  </span>
-                  {course.originalPrice > course.price && (
-                    <span className="text-sm text-[#64748B] line-through tabular-nums">
-                      ₹{course.originalPrice.toLocaleString('en-IN')}
-                    </span>
-                  )}
-                  {discountPercent > 0 && (
-                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                      {discountPercent}% OFF
-                    </span>
-                  )}
-                </div>
-                <div className="text-[13px] text-[#5E17EB] font-semibold mt-1">
-                  Guaranteed lifetime access to all future lectures
-                </div>
-              </div>
-
-              {/* Action Buttons */}
               <div className="space-y-2.5">
-                {enrolled ? (
+                <CoursePurchaseButton course={course} fullWidth className="h-12 text-[15px]" />
+                {!enrolled && (
                   <button
-                    onClick={() => navigate(`/learn/${course.id}`)}
-                    className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full shadow transition-colors flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={() => (isInCart(course.id) ? setIsCartOpen(true) : addToCart(course))}
+                    className={`w-full h-11 px-4 text-[14px] font-semibold rounded-full border transition-colors flex items-center justify-center gap-2 ${
+                      isInCart(course.id) ? 'bg-[#EBF3FF] border-[#004AAD] text-[#004AAD]' : 'bg-white border-[#CBD5E1] text-[#111827] hover:bg-[#F8FAFC]'
+                    }`}
                   >
-                    <span>Resume Course Player</span>
-                    <PlayCircle className="w-4 h-4" />
+                    <ShoppingBag className="w-4 h-4" />
+                    {isInCart(course.id) ? 'View in cart' : 'Add to cart'}
                   </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleEnrollClick}
-                      disabled={isProcessingPayment}
-                      className="w-full py-3.5 px-4 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] disabled:opacity-75 disabled:cursor-not-allowed rounded-full shadow transition-colors flex items-center justify-center gap-2"
-                    >
-                      <span>{isProcessingPayment ? 'Processing Payment...' : 'Enroll Now'}</span>
-                      <CheckCircle className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (isInCart(course.id)) {
-                          setIsCartOpen(true);
-                        } else {
-                          addToCart(course);
-                        }
-                      }}
-                      className={`w-full py-2.5 px-4 text-xs font-semibold rounded-xl border transition-colors flex items-center justify-center gap-2 ${
-                        isInCart(course.id)
-                          ? 'bg-[#EBF3FF] border-[#004AAD] text-[#004AAD]'
-                          : 'bg-white border-[#CBD5E1] text-[#111827] hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>{isInCart(course.id) ? 'View in Cart' : 'Add to Cart'}</span>
-                    </button>
-                  </>
                 )}
-
-                <button
-                  onClick={() => toggleWishlist(course.id, course.title)}
-                  className={`w-full py-2.5 px-4 text-xs font-semibold rounded-xl border transition-colors flex items-center justify-center gap-2 ${
-                    isFavorited
-                      ? 'bg-[#F4EFFF] border-[#5E17EB] text-[#5E17EB]'
-                      : 'bg-white border-[#E2E8F0] text-[#111827] hover:bg-[#F8FAFC]'
-                  }`}
-                >
-                  <Heart className={`w-4 h-4 ${isFavorited ? 'fill-[#5E17EB]' : ''}`} />
-                  <span>{isFavorited ? 'Saved in Wishlist' : 'Add to Wishlist'}</span>
-                </button>
               </div>
 
-              {/* Guarantees and Inclusions */}
-              <div className="pt-4 border-t border-[#E2E8F0] space-y-2 text-xs text-[#64748B]">
-                <div className="font-bold text-[#111827] mb-1">This masterclass includes:</div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-[#004AAD]" />
-                  <span>{formatDuration(course.durationHours)} on-demand video</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-3.5 h-3.5 text-[#004AAD]" />
-                  <span>{course.totalLessons} practical lessons & source files</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="w-3.5 h-3.5 text-[#5E17EB]" />
-                  <span>Verified Certificate of Completion</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>30-Day Money-Back Guarantee</span>
-                </div>
+              <div className="pt-4 border-t border-[#E2E8F0] space-y-2.5 text-[14px] text-[#475569]">
+                <div className="font-bold text-[#111827]">This course includes</div>
+                {course.durationHours > 0 && (
+                  <div className="flex items-center gap-2.5"><Clock className="w-4 h-4 text-[#004AAD]" />{formatDuration(course.durationHours)} of on-demand video</div>
+                )}
+                <div className="flex items-center gap-2.5"><PlayCircle className="w-4 h-4 text-[#004AAD]" />{course.totalLessons} lessons</div>
+                {course.certificateOffered && (
+                  <div className="flex items-center gap-2.5"><Award className="w-4 h-4 text-[#B8913A]" />Certificate of completion</div>
+                )}
+                <div className="flex items-center gap-2.5"><MonitorSmartphone className="w-4 h-4 text-[#004AAD]" />Learn on mobile or desktop</div>
+                <Link to="/refund" className="flex items-center gap-2.5 hover:text-[#004AAD]"><ShieldCheck className="w-4 h-4 text-emerald-600" />See our refund policy</Link>
               </div>
             </div>
-          </div>
+          </aside>
         </div>
 
-        {/* 3. Related Courses */}
+        {/* 3. Related courses */}
         {relatedCourses.length > 0 && (
-          <section className="mt-16 pt-12 border-t border-[#E2E8F0]">
-            <h2 className="font-display text-2xl font-bold text-[#111827] mb-6">
-              More Courses in {course.category}
+          <section className="mt-16 pt-12 border-t border-[#E2E8F0]" aria-labelledby="related-heading">
+            <h2 id="related-heading" className="font-display text-[24px] font-extrabold tracking-tight text-[#111827] mb-6">
+              More courses in {course.category}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {relatedCourses.map((rel) => (
@@ -612,7 +652,8 @@ export const CourseDetailsPage: React.FC = () => {
             <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-white/75">{enrolled ? 'Continue where you left off' : 'Start learning today'}</p>
             <h2 className="mt-2 font-display text-[26px] sm:text-[32px] font-extrabold leading-tight">{course.title}</h2>
             <p className="mt-3 text-[16px] text-white/85">
-              {course.totalLessons} lessons · {formatDuration(course.durationHours)}
+              {course.totalLessons} lessons
+              {course.durationHours > 0 ? ` · ${formatDuration(course.durationHours)}` : ''}
               {course.certificateOffered ? ' · Certificate of completion' : ''}
             </p>
           </div>

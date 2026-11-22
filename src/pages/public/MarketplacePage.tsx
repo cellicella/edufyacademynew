@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { courseService } from '../../services/api';
 import { Course } from '../../types';
@@ -11,8 +11,10 @@ import {
   SlidersHorizontal,
   X,
   RotateCcw,
-  Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import { COURSES_PER_PAGE, pageItems, parsePage, resultSummary, totalPages as countPages } from '../../lib/pagination';
 
 export const MarketplacePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,25 +35,58 @@ export const MarketplacePage: React.FC = () => {
   const priceFilter = searchParams.get('price') || 'all';
   const sortOption = searchParams.get('sort') || 'popular';
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 6;
+  // Pagination: 12 courses per page, read from ?page= so Back/Forward and shared links keep the page
+  const currentPage = parsePage(searchParams.get('page'));
+  const [total, setTotal] = useState<number>(0);
+  const listTop = useRef<HTMLDivElement>(null);
+  const requestId = useRef(0);
 
   useEffect(() => {
+    const id = ++requestId.current;
     setLoading(true);
     courseService
-      .getAllCourses({
-        search: searchQuery,
-        category: categoryFilter,
-        level: levelFilter,
-        priceFilter: priceFilter !== 'all' ? priceFilter : undefined,
-        sort: sortOption,
-      })
-      .then((data) => {
-        setCourses(data);
+      .getCoursesPage(
+        {
+          search: searchQuery,
+          category: categoryFilter,
+          level: levelFilter,
+          priceFilter: priceFilter !== 'all' ? priceFilter : undefined,
+          sort: sortOption,
+        },
+        currentPage,
+        COURSES_PER_PAGE,
+      )
+      .then(({ courses: pageCourses, total: count }) => {
+        if (id !== requestId.current) return; // a newer request has started
+        setCourses(pageCourses);
+        setTotal(count);
         setLoading(false);
       });
-  }, [searchQuery, categoryFilter, levelFilter, priceFilter, sortOption]);
+  }, [searchQuery, categoryFilter, levelFilter, priceFilter, sortOption, currentPage]);
+
+  const pages = countPages(total);
+
+  // A page number past the end (e.g. after filters change elsewhere): go to the last page
+  useEffect(() => {
+    if (!loading && total > 0 && currentPage > pages) {
+      const params = new URLSearchParams(searchParams);
+      if (pages > 1) params.set('page', String(pages));
+      else params.delete('page');
+      setSearchParams(params, { replace: true });
+    }
+  }, [loading, total, currentPage, pages, searchParams, setSearchParams]);
+
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (page <= 1) params.delete('page');
+    else params.set('page', String(page));
+    setSearchParams(params);
+    const el = listTop.current;
+    if (el) {
+      const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 100, behavior: reduce ? 'auto' : 'smooth' });
+    }
+  };
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -60,13 +95,12 @@ export const MarketplacePage: React.FC = () => {
     } else {
       params.set(key, value);
     }
+    params.delete('page'); // new search or filter: back to page 1
     setSearchParams(params);
-    setCurrentPage(1);
   };
 
   const resetFilters = () => {
     setSearchParams({});
-    setCurrentPage(1);
   };
 
   const categories = [{ id: 'all', label: 'All Categories' }, ...dbCategories];
@@ -84,13 +118,6 @@ export const MarketplacePage: React.FC = () => {
     { id: 'under-35', label: 'Under ₹35' },
   ];
 
-  // Pagination calculation
-  const totalPages = Math.ceil(courses.length / itemsPerPage);
-  const paginatedCourses = courses.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
   return (
     <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-8 sm:py-12">
       {/* Page header — editorial */}
@@ -101,7 +128,7 @@ export const MarketplacePage: React.FC = () => {
             {searchQuery ? <>Results for “{searchQuery}”</> : 'Find your next course.'}
           </h1>
           <p className="mt-5 text-[18px] sm:text-[19px] leading-[1.7] text-[#475569] measure">
-            Filter by discipline, level or price. Every course includes lifetime access and a verifiable certificate on completion.
+            Filter by category, level or price. Every course includes a certificate of completion you can verify online.
           </p>
         </div>
       </header>
@@ -222,8 +249,8 @@ export const MarketplacePage: React.FC = () => {
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>Filters</span>
               </button>
-              <span className="text-xs text-[#64748B]">
-                Showing <strong className="text-[#111827] tabular-nums">{courses.length}</strong> available courses
+              <span className="text-xs text-[#64748B] tabular-nums" aria-live="polite">
+                {loading ? 'Loading courses…' : resultSummary(currentPage, total)}
               </span>
             </div>
 
@@ -265,9 +292,10 @@ export const MarketplacePage: React.FC = () => {
           </div>
 
           {/* Course List / Grid */}
+          <div ref={listTop} />
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 py-12">
-              {[1, 2, 3].map((n) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div key={n} className="bg-white rounded-2xl border border-[#E2E8F0] p-4 h-72 animate-pulse space-y-3">
                   <div className="bg-slate-200 h-36 rounded-lg"></div>
                   <div className="bg-slate-200 h-4 w-3/4 rounded"></div>
@@ -275,7 +303,7 @@ export const MarketplacePage: React.FC = () => {
                 </div>
               ))}
             </div>
-          ) : paginatedCourses.length === 0 ? (
+          ) : courses.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-[#EBF3FF] text-[#004AAD] flex items-center justify-center mx-auto">
                 <Search className="w-6 h-6" />
@@ -297,38 +325,59 @@ export const MarketplacePage: React.FC = () => {
             <div
               className={
                 viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6'
                   : 'space-y-4'
               }
             >
-              {paginatedCourses.map((course) => (
+              {courses.map((course) => (
                 <CourseCard key={course.id} course={course} viewMode={viewMode} />
               ))}
             </div>
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="pt-6 border-t border-[#E2E8F0] flex items-center justify-between">
+          {!loading && pages > 1 && (
+            <nav aria-label="Course pages" className="pt-6 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-3">
               <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 text-xs font-semibold text-[#111827] bg-white border border-[#E2E8F0] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F8FAFC]"
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => goToPage(currentPage - 1)}
+                className="inline-flex items-center gap-1 h-10 px-3.5 text-sm font-semibold text-[#111827] bg-white border border-[#E2E8F0] rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F8FAFC]"
               >
-                Previous
+                <ChevronLeft className="w-4 h-4" /> Previous
               </button>
-              <div className="text-xs text-[#64748B]">
-                Page <span className="font-bold text-[#111827]">{currentPage}</span> of{' '}
-                <span className="font-bold text-[#111827]">{totalPages}</span>
-              </div>
+              <ol className="flex items-center gap-1.5 order-last w-full justify-center sm:order-none sm:w-auto">
+                {pageItems(currentPage, pages).map((item, i) =>
+                  item === 'gap' ? (
+                    <li key={`gap-${i}`} className="w-8 text-center text-sm text-[#94A3B8]" aria-hidden="true">…</li>
+                  ) : (
+                    <li key={item}>
+                      <button
+                        type="button"
+                        onClick={() => goToPage(item)}
+                        aria-current={item === currentPage ? 'page' : undefined}
+                        aria-label={`Page ${item}`}
+                        className={`min-w-10 h-10 px-3 rounded-full text-sm font-semibold tabular-nums transition-colors ${
+                          item === currentPage
+                            ? 'bg-gradient-to-r from-[#004AAD] to-[#5E17EB] text-white shadow-sm'
+                            : 'bg-white border border-[#E2E8F0] text-[#334155] hover:border-[#5271FF] hover:text-[#004AAD]'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    </li>
+                  ),
+                )}
+              </ol>
               <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3 py-1.5 text-xs font-semibold text-[#111827] bg-white border border-[#E2E8F0] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F8FAFC]"
+                type="button"
+                disabled={currentPage >= pages}
+                onClick={() => goToPage(currentPage + 1)}
+                className="inline-flex items-center gap-1 h-10 px-3.5 text-sm font-semibold text-[#111827] bg-white border border-[#E2E8F0] rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F8FAFC]"
               >
-                Next
+                Next <ChevronRight className="w-4 h-4" />
               </button>
-            </div>
+            </nav>
           )}
         </div>
       </div>
