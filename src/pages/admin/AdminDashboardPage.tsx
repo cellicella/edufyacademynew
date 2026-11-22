@@ -5,12 +5,13 @@ import {
   Users,
   BookCheck,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   ShieldCheck,
   Activity,
   ArrowUpRight,
   Award,
 } from 'lucide-react';
+import { formatINR } from '../../utils/currency';
 
 export const AdminDashboardPage: React.FC = () => {
   const [analytics, setAnalytics] = useState<any>(null);
@@ -51,7 +52,7 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Captured Gross Revenue</div>
           <div className="font-display text-2xl font-bold text-[#004AAD] mt-1 tabular-nums">
-            ${loading ? '...' : (analytics?.monthlyGrossRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {loading ? '...' : formatINR(analytics?.monthlyGrossRevenue ?? 0, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">Processed through Razorpay</div>
         </div>
@@ -113,7 +114,7 @@ export const AdminDashboardPage: React.FC = () => {
         >
           <div>
             <div className="w-10 h-10 rounded-lg bg-[#F4EFFF] text-[#5E17EB] flex items-center justify-center mb-3">
-              <DollarSign className="w-5 h-5" />
+              <IndianRupee className="w-5 h-5" />
             </div>
             <h3 className="font-display text-base font-bold text-[#111827]">Financial Audits</h3>
             <p className="text-xs text-[#64748B] mt-1 leading-relaxed">

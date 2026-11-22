@@ -217,7 +217,12 @@ export const absoluteUrl = (pathOrUrl: string | null | undefined): string | null
 /* ------------------------------------------------------------------ data shapes (from the database / app) */
 export interface SeoCourse {
   id: string;
+  /** Readable URL slug (used for the public address when present). */
+  slug?: string | null;
   title: string;
+  /** Optional search-result title / description set for the course. */
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   subtitle?: string | null;
   description?: string | null;
   category?: string | null;
@@ -233,6 +238,10 @@ export interface SeoCourse {
   updatedAt?: string | null;
   instructorName?: string | null;
   instructorTitle?: string | null;
+  /** Who the course is for (readable list on the prerendered page). */
+  audience?: string[];
+  /** Curriculum for the prerendered page: sections in order with their lessons. */
+  sections?: { title: string; description?: string | null; lessons: { title: string; minutes: number; freePreview?: boolean }[] }[];
 }
 
 export interface SeoPost {
@@ -260,7 +269,8 @@ export interface SeoBundle {
   updatedAt?: string | null;
 }
 
-export const coursePath = (c: Pick<SeoCourse, 'id'>) => `/courses/${encodeURIComponent(c.id)}`;
+/** Public address of a course: its readable slug when it has one (e.g. /courses/salary-negotiation-course), else its id. */
+export const coursePath = (c: { id: string; slug?: string | null }) => `/courses/${encodeURIComponent((c.slug || '').trim() || c.id)}`;
 export const postPath = (p: Pick<SeoPost, 'slug'>) => `/blog/${encodeURIComponent(p.slug)}`;
 export const bundlePath = (b: Pick<SeoBundle, 'slug'>) => `/bundles/${encodeURIComponent(b.slug)}`;
 
@@ -276,7 +286,12 @@ export function courseSeo(c: SeoCourse): { title: string; description: string } 
   const level = c.level && !/all levels/i.test(c.level) ? `${c.level.toLowerCase()} ` : '';
   const base = stripHtml(c.subtitle) || stripHtml(c.description) || `${name} — an online course by Edufy Academy.`;
   const facts = [`Self-paced ${level}online course`, c.totalLessons ? `${c.totalLessons} ${c.totalLessons === 1 ? 'lesson' : 'lessons'}` : '', c.price > 0 ? `₹${Math.round(c.price).toLocaleString('en-IN')}` : 'free'].filter(Boolean).join(' · ');
-  return { title: withBrand(name), description: withFacts(base, `${facts}.`) };
+  const seoTitle = stripHtml(c.seoTitle);
+  const seoDescription = stripHtml(c.seoDescription);
+  return {
+    title: seoTitle ? withBrand(seoTitle) : withBrand(name),
+    description: seoDescription ? clip(seoDescription, 160) : withFacts(base, `${facts}.`),
+  };
 }
 
 /** "<text> <facts>" within 160 characters: the text is shortened (never the facts), ending as a sentence. */

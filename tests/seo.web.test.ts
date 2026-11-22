@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSeoFiles, categoriesWithCourses, mapCourseRow, renderPage, type SeoData } from '../scripts/seo/prerender';
+import fs from 'node:fs';
+import { REDIRECT_MARKER, buildSeoFiles, categoriesWithCourses, courseRedirectRules, mapCourseRow, renderPage, withCourseRedirects, type SeoData } from '../scripts/seo/prerender';
 import { STATIC_PAGES, courseLd, isPrivatePath, jsonLdScript, readableTitle, sitemapXml } from '../src/seo/seoConfig';
 
 const TEMPLATE = `<!doctype html><html lang="en"><head><meta charset="UTF-8" />
@@ -129,4 +130,48 @@ test('course structured data uses only real course fields', () => {
   assert.equal(ld['@type'], 'Course');
   assert.ok(!('aggregateRating' in ld) && !('review' in ld), 'no ratings or reviews are invented');
   assert.equal(readableTitle('EXCEL FOR BEGINNERS'), 'Excel for Beginners');
+});
+
+test('courses with a slug use it as their public address, canonical and sitemap entry', () => {
+  const withSlug = mapCourseRow({
+    id: 'course-adilo-zlxq61yx', slug: 'salary-negotiation-course', title: 'Mastering Salary Negotiation', price: 499, original_price: 4999, total_lessons: 2,
+    target_audience: ['Employees preparing to ask for a raise'],
+    course_sections: [
+      { title: 'Negotiation Foundations', description: 'A four-step framework.', section_order: 2, lessons: [{ title: '4. Salary Negotiation: Your Four-Step Framework', lesson_order: 1, duration_minutes: 8 }] },
+      { title: 'Welcome', section_order: 1, lessons: [{ title: '0. Course Overview', lesson_order: 1, duration_minutes: 2, is_free_preview: true }] },
+    ],
+  });
+  const files = buildSeoFiles(TEMPLATE, data({ courses: [withSlug] }));
+  const html = files.get('seo/courses/salary-negotiation-course.html')!;
+  assert.ok(html, 'prerendered at the slug address');
+  assert.match(html, /<link rel="canonical" href="https:\/\/edufyacademy\.com\/courses\/salary-negotiation-course" \/>/);
+  assert.ok(files.get('sitemap.xml')!.includes('https://edufyacademy.com/courses/salary-negotiation-course'));
+  assert.ok(!files.get('sitemap.xml')!.includes('course-adilo-zlxq61yx'));
+  // readable curriculum in original order, with overviews and audience
+  assert.ok(html.indexOf('Welcome') < html.indexOf('Negotiation Foundations'));
+  assert.ok(html.includes('0. Course Overview (2 min) – free preview'));
+  assert.ok(html.includes('A four-step framework.'));
+  assert.ok(html.includes('Who this course is for'));
+});
+
+test('old /courses/<id> addresses get a permanent redirect to the readable address', () => {
+  const rules = courseRedirectRules([{ id: 'course-c3f139cd', slug: 'job-interview-preparation-power-framework' }, { id: 'c-2', slug: null }, { id: 'same', slug: 'same' }, { id: 'bad id', slug: 'x' }]);
+  assert.deepEqual(rules, ['RewriteRule ^courses/course-c3f139cd/?$ /courses/job-interview-preparation-power-framework [R=301,L]']);
+  const ht = `RewriteEngine On\n  ${REDIRECT_MARKER}\n  RewriteRule ^x$ - [L]`;
+  const out = withCourseRedirects(ht, rules);
+  assert.ok(out.includes('RewriteRule ^courses/course-c3f139cd/?$'));
+  assert.ok(out.indexOf('course-c3f139cd') < out.indexOf('RewriteRule ^x$'), 'redirects come before the other rules');
+  assert.equal(withCourseRedirects('no marker', rules), 'no marker');
+  assert.ok(fs.readFileSync(new URL('../public/.htaccess', import.meta.url), 'utf8').includes(REDIRECT_MARKER), 'marker present in public/.htaccess');
+});
+
+test('a course SEO title / description is used for the search result when set, else generated', () => {
+  const base = mapCourseRow({ id: 'c-9', title: 'Mastering Salary Negotiation: How to Ask for a Raise and Secure Your Worth', subtitle: 'Use a four-step framework.', price: 499 });
+  const generated = buildSeoFiles(TEMPLATE, data({ courses: [base] })).get('seo/courses/c-9.html')!;
+  assert.match(generated, /<title>Mastering Salary Negotiation: How to Ask for a Raise and Secure Your Worth<\/title>/);
+  const tuned = mapCourseRow({ id: 'c-9', title: base.title, seo_title: 'Salary Negotiation Course: Ask for a Raise', seo_description: 'Learn salary negotiation with a four-step framework.', price: 499 });
+  const html = buildSeoFiles(TEMPLATE, data({ courses: [tuned] })).get('seo/courses/c-9.html')!;
+  assert.match(html, /<title>Salary Negotiation Course: Ask for a Raise \| Edufy Academy<\/title>/);
+  assert.match(html, /<meta name="description" content="Learn salary negotiation with a four-step framework\." \/>/);
+  assert.match(html, /<h1>Mastering Salary Negotiation: How to Ask for a Raise and Secure Your Worth<\/h1>/, 'the page heading keeps the full course name');
 });

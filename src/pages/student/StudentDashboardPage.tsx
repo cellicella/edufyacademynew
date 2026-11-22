@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Compass,
 } from 'lucide-react';
+import { formatINR } from '../../utils/currency';
 
 export const StudentDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -441,7 +442,7 @@ export const StudentDashboardPage: React.FC = () => {
                         {p.razorpay_payment_id || p.razorpay_order_id}
                       </td>
                       <td className="py-3.5 pr-4 font-bold text-[#111827] tabular-nums whitespace-nowrap">
-                        ${typeof p.amount === 'number' ? p.amount.toFixed(2) : parseFloat(p.amount).toFixed(2)}
+                        {formatINR(p.amount, 2)}
                       </td>
                       <td className="py-3.5 pr-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
@@ -567,14 +568,10 @@ export const StudentDashboardPage: React.FC = () => {
                       </td>
                       <td className="py-2.5 text-center text-[#64748B]">1</td>
                       <td className="py-2.5 text-right font-mono">
-                        ${typeof selectedInvoice.amount === 'number'
-                          ? selectedInvoice.amount.toFixed(2)
-                          : parseFloat(selectedInvoice.amount).toFixed(2)}
+                        {formatINR(selectedInvoice.amount, 2)}
                       </td>
                       <td className="py-2.5 text-right font-bold font-mono">
-                        ${typeof selectedInvoice.amount === 'number'
-                          ? selectedInvoice.amount.toFixed(2)
-                          : parseFloat(selectedInvoice.amount).toFixed(2)}
+                        {formatINR(selectedInvoice.amount, 2)}
                       </td>
                     </tr>
                   </tbody>
@@ -587,21 +584,17 @@ export const StudentDashboardPage: React.FC = () => {
                   <div className="flex justify-between text-[#64748B]">
                     <span>Subtotal:</span>
                     <span className="font-mono text-[#111827]">
-                      ${typeof selectedInvoice.amount === 'number'
-                        ? selectedInvoice.amount.toFixed(2)
-                        : parseFloat(selectedInvoice.amount).toFixed(2)}
+                      {formatINR(selectedInvoice.amount, 2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-[#64748B]">
                     <span>Platform Tax / GST (0%):</span>
-                    <span className="font-mono text-[#111827]">$0.00</span>
+                    <span className="font-mono text-[#111827]">{formatINR(0, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-[#111827] pt-2 border-t border-[#E2E8F0]">
                     <span>Total Paid:</span>
                     <span className="font-mono text-[#004AAD]">
-                      ${typeof selectedInvoice.amount === 'number'
-                        ? selectedInvoice.amount.toFixed(2)
-                        : parseFloat(selectedInvoice.amount).toFixed(2)} USD
+                      {formatINR(selectedInvoice.amount, 2)} INR
                     </span>
                   </div>
                 </div>

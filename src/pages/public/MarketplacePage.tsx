@@ -81,7 +81,7 @@ export const MarketplacePage: React.FC = () => {
   const priceOptions = [
     { id: 'all', label: 'All Prices' },
     { id: 'discounted', label: 'Special Offers (Discounted)' },
-    { id: 'under-35', label: 'Under $35' },
+    { id: 'under-35', label: 'Under ₹35' },
   ];
 
   // Pagination calculation

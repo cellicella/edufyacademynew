@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, ArrowUpRight, Download, CreditCard, CheckCircle2, Receipt } from 'lucide-react';
+import { IndianRupee, ArrowUpRight, Download, CreditCard, CheckCircle2, Receipt } from 'lucide-react';
 import { instructorService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { formatINR } from '../../utils/currency';
 
 export const InstructorEarningsPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -33,7 +34,7 @@ export const InstructorEarningsPage: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Accumulated Earnings</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
-            ${loading ? '...' : totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {loading ? '...' : formatINR(totalEarnings, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">Total revenue generated</div>
         </div>
@@ -41,7 +42,7 @@ export const InstructorEarningsPage: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Current Month Estimate</div>
           <div className="font-display text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
-            ${loading ? '...' : currentMonthEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {loading ? '...' : formatINR(currentMonthEarnings, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">Pending next monthly cycle</div>
         </div>
@@ -92,7 +93,7 @@ export const InstructorEarningsPage: React.FC = () => {
                     <td className="p-4 text-[#111827]">{item.studentName}</td>
                     <td className="p-4 text-[#64748B] max-w-xs truncate">{item.courseTitle}</td>
                     <td className="p-4 font-mono tabular-nums font-bold text-emerald-600">
-                      +${item.amount.toFixed(2)}
+                      +{formatINR(item.amount, 2)}
                     </td>
                     <td className="p-4 text-[#64748B]">{item.date}</td>
                     <td className="p-4 text-right">

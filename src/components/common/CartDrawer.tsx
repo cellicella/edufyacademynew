@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { cdnImage } from '../../lib/cdnImage';
+import { formatINR } from '../../utils/currency';
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -151,11 +152,11 @@ export const CartDrawer: React.FC = () => {
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-display text-sm font-extrabold text-[#111827] tabular-nums">
-                            ${item.price.toFixed(2)}
+                            {formatINR(item.price)}
                           </span>
                           {item.originalPrice && item.originalPrice > item.price && (
                             <span className="text-[13px] text-[#64748B] line-through tabular-nums">
-                              ${item.originalPrice.toFixed(2)}
+                              {formatINR(item.originalPrice)}
                             </span>
                           )}
                         </div>
@@ -192,7 +193,7 @@ export const CartDrawer: React.FC = () => {
                 <div className="flex justify-between text-[#64748B]">
                   <span>Subtotal</span>
                   <span className="font-semibold text-[#111827] tabular-nums">
-                    ${cartSubtotal.toFixed(2)}
+                    {formatINR(cartSubtotal)}
                   </span>
                 </div>
                 <div className="flex justify-between text-emerald-600 font-medium">
@@ -206,7 +207,7 @@ export const CartDrawer: React.FC = () => {
                   <span className="text-sm font-bold text-[#111827]">Total Due</span>
                   <div className="text-right">
                     <span className="font-display text-2xl font-extrabold text-[#111827] tabular-nums">
-                      ${cartSubtotal.toFixed(2)}
+                      {formatINR(cartSubtotal)}
                     </span>
                     <span className="text-[12px] text-[#64748B] block">
                       ≈ ₹{(cartSubtotal * 83).toFixed(0)} INR via {gateway}

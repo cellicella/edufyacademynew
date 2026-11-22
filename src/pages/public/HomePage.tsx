@@ -19,11 +19,18 @@ import {
   Clock,
   PlayCircle,
   GraduationCap,
+  Lock,
+  Zap,
+  Award,
 } from 'lucide-react';
 import { cdnAvatar, cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 import { displayInstructor, isPlatformAccount } from '../../config/leadInstructor';
 import { LeadTutorSection } from '../../components/site/LeadTutorSection';
-import { CoursePurchaseButton } from '../../components/course/CoursePurchase';
+import { CoursePurchaseButton, isFreeCourse } from '../../components/course/CoursePurchase';
+import { formatINR } from '../../utils/currency';
+import { coursePath } from '../../seo/seoConfig';
+import { calculateDiscountPercent } from '../../utils/courseUtils';
+import { useCartWishlist } from '../../context/CartWishlistContext';
 
 /* Authentic educational photography (Unsplash) */
 const PHOTOS = {
@@ -84,6 +91,67 @@ const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> = ({ classN
   const [failed, setFailed] = useState(false);
   if (failed) return <div className={`bg-[#E8EFFB] ${className}`} aria-hidden="true" />;
   return <img {...props} className={className} onError={() => setFailed(true)} />;
+};
+
+/**
+ * Course card for the homepage course section: picture, title, real price (with the original price and saving
+ * when discounted) and ONE clear action — Buy now (existing checkout; guests sign in first and come back),
+ * Enroll for free, or Continue learning when already enrolled.
+ */
+const BuyCourseCard: React.FC<{ course: Course }> = ({ course }) => {
+  const { isEnrolled } = useCartWishlist();
+  const enrolled = isEnrolled(course.id);
+  const free = isFreeCourse(course);
+  const discount = free ? 0 : calculateDiscountPercent(course.price, course.originalPrice);
+  const saving = !free && course.originalPrice > course.price ? course.originalPrice - course.price : 0;
+  const href = coursePath(course);
+  return (
+    <article className="group h-full flex flex-col bg-white rounded-[28px] border border-[#E2E8F0] shadow-[0_10px_30px_-18px_rgba(17,24,39,0.25)] hover:shadow-[0_24px_48px_-20px_rgba(0,74,173,0.35)] hover:border-[#C9D8F5] motion-safe:hover:-translate-y-1 transition-[box-shadow,transform,border-color] duration-300 overflow-hidden">
+      <Link to={href} className="relative block aspect-[16/9] overflow-hidden bg-[#E8EFFB]" tabIndex={-1} aria-hidden="true">
+        <SafeImage src={cdnImage(course.thumbnail, 960)} srcSet={cdnSrcSet(course.thumbnail, [480, 640, 960, 1280])} sizes="(min-width: 1024px) 50vw, 100vw" alt="" className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700" />
+        {enrolled ? (
+          <span className="absolute top-3 left-3 h-8 px-3 inline-flex items-center rounded-full bg-[#004AAD] text-white text-[13px] font-bold shadow">Enrolled</span>
+        ) : free ? (
+          <span className="absolute top-3 left-3 h-8 px-3 inline-flex items-center rounded-full bg-emerald-600 text-white text-[13px] font-bold shadow">Free</span>
+        ) : discount > 0 ? (
+          <span className="absolute top-3 left-3 h-8 px-3 inline-flex items-center rounded-full bg-gradient-to-r from-[#5E17EB] to-[#004AAD] text-white text-[13px] font-extrabold tracking-wide shadow">{discount}% OFF</span>
+        ) : null}
+      </Link>
+
+      <div className="flex-1 flex flex-col p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
+          <span className="font-semibold text-[#5E17EB]">{course.level}</span>
+          <span className="inline-flex items-center gap-1 text-[#64748B]"><Clock className="w-4 h-4" />{formatDuration(course.durationHours)}</span>
+          <span className="inline-flex items-center gap-1 text-[#64748B]"><PlayCircle className="w-4 h-4" />{course.totalLessons} {course.totalLessons === 1 ? 'lesson' : 'lessons'}</span>
+          {course.certificateOffered && <span className="inline-flex items-center gap-1 text-[#64748B]"><Award className="w-4 h-4" />Certificate</span>}
+        </div>
+        <Link to={href} className="mt-2 focus-visible:outline-none">
+          <h3 className="font-display text-[20px] sm:text-[21px] font-bold leading-snug text-[#111827] group-hover:text-[#004AAD] transition-colors line-clamp-3 sm:line-clamp-2">{course.title}</h3>
+        </Link>
+
+        <div className="mt-auto pt-5">
+          {!enrolled && (
+            <div className="mb-4">
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className="font-display text-[28px] font-extrabold tracking-tight text-[#111827] tabular-nums">{free ? 'Free' : formatINR(course.price)}</span>
+                {saving > 0 && (
+                  <span className="text-[16px] text-[#94A3B8] line-through tabular-nums">
+                    <span className="sr-only">Original price </span>
+                    {formatINR(course.originalPrice)}
+                  </span>
+                )}
+              </div>
+              {saving > 0 && <div className="mt-0.5 text-[14px] font-semibold text-emerald-700">You save {formatINR(saving)}</div>}
+            </div>
+          )}
+          <CoursePurchaseButton course={course} label="Buy now" fullWidth />
+          <Link to={href} className="mt-3 flex items-center justify-center gap-1 text-[14px] font-semibold text-[#475569] hover:text-[#004AAD]">
+            View course details <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
 };
 
 export const HomePage: React.FC = () => {
@@ -162,7 +230,7 @@ export const HomePage: React.FC = () => {
           .sort((a, b) => (LEVEL_ORDER[a.level] ?? 1) - (LEVEL_ORDER[b.level] ?? 1))
           .slice(0, 4),
       }))
-      .filter((p) => p.steps.length >= 2)
+      .filter((p) => p.steps.length >= 1)
       .slice(0, 4);
   }, [categories, courses]);
 
@@ -273,7 +341,7 @@ export const HomePage: React.FC = () => {
 
                 {featuredCourse && (
                   <div className="group absolute -bottom-10 left-4 right-4 sm:left-auto sm:-right-4 lg:-right-8 sm:w-[360px] bg-white rounded-[24px] p-5 shadow-xl hover:shadow-2xl transition-shadow">
-                    <Link to={`/courses/${featuredCourse.id}`} className="block">
+                    <Link to={coursePath(featuredCourse)} className="block">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#5E17EB]">Featured course</span>
                         <ArrowUpRight className="w-5 h-5 text-[#94A3B8] group-hover:text-[#004AAD] group-hover:rotate-45 transition" />
@@ -320,14 +388,85 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ================================================================
-          01 — DISCIPLINES: editorial index list
+          01 — COURSES: right after the hero, with prices and one clear buy button per course
+         ================================================================ */}
+      {currentPath && (
+        <section id="courses" className="bg-white border-y border-[#E2E8F0] scroll-mt-20">
+          <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-20 lg:py-24">
+            <SectionHeader
+              index="01"
+              eyebrow="Our courses"
+              title={<>Pick a course and start learning today.</>}
+              lead="Arranged by level, so you always know what to take next. Pay securely and get instant access to your course."
+              action={
+                <Link to="/courses" className="ed-btn ed-btn-text">
+                  View all courses <ArrowRight className="w-5 h-5" />
+                </Link>
+              }
+            />
+
+            {learningPaths.length > 1 && (
+              <div role="tablist" aria-label="Course categories" className="inline-flex flex-wrap gap-1 p-1.5 bg-[#F1F5F9] rounded-full mb-10">
+                {learningPaths.map((p) => (
+                  <button
+                    key={p.slug}
+                    role="tab"
+                    aria-selected={p.slug === currentPath.slug}
+                    onClick={() => setActivePath(p.slug)}
+                    className={`h-11 px-5 rounded-full text-[15px] font-semibold transition-all ${
+                      p.slug === currentPath.slug ? 'bg-white text-[#004AAD] shadow-sm' : 'text-[#475569] hover:text-[#111827]'
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <ol className={`grid grid-cols-1 gap-6 lg:gap-8 ${currentPath.steps.length >= 4 ? 'sm:grid-cols-2 lg:grid-cols-4' : currentPath.steps.length === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : currentPath.steps.length === 2 ? 'md:grid-cols-2' : 'max-w-[560px]'}`}>
+              {currentPath.steps.map((course, i) => (
+                <motion.li key={course.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08, duration: 0.5 }}>
+                  <BuyCourseCard course={course} />
+                </motion.li>
+              ))}
+            </ol>
+
+            {/* What every purchase includes — facts about the checkout, no invented numbers */}
+            <ul className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { icon: Lock, text: 'Secure payment with Razorpay' },
+                { icon: Zap, text: 'Instant access after payment' },
+                { icon: InfinityIcon, text: 'Learn at your own pace' },
+              ].map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-3 rounded-2xl bg-[#F7F9FC] border border-[#EEF2F7] px-4 py-3.5 text-[15px] font-semibold text-[#334155]">
+                  <span className="w-9 h-9 rounded-full bg-white text-[#004AAD] flex items-center justify-center shadow-sm shrink-0">
+                    <Icon className="w-[18px] h-[18px]" />
+                  </span>
+                  {text}
+                </li>
+              ))}
+            </ul>
+
+            {learningPaths.length > 1 && (
+              <div className="mt-8">
+                <Link to={`/courses?category=${currentPath.slug}`} className="ed-btn ed-btn-outlined">
+                  See every {currentPath.name} course <ArrowRight className="w-5 h-5" />
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ================================================================
+          02 — DISCIPLINES: editorial index list
          ================================================================ */}
       <section className="max-w-[1280px] mx-auto px-5 sm:px-8 py-24 lg:py-32">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <motion.div {...fadeUp} className="lg:col-span-4">
             <div className="lg:sticky lg:top-28">
               <div className="flex items-center gap-4 mb-5">
-                <span className="font-display text-[15px] font-bold text-[#94A3B8]">01</span>
+                <span className="font-display text-[15px] font-bold text-[#94A3B8]">02</span>
                 <span className="ed-eyebrow">Disciplines</span>
               </div>
               <h2 className="ed-display text-[2.125rem] sm:text-[2.75rem] leading-[1.1]">Choose where you want to grow.</h2>
@@ -372,66 +511,6 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ================================================================
-          02 — LEARNING PATHS: built from real courses ordered by level
-         ================================================================ */}
-      {currentPath && (
-        <section className="bg-white border-y border-[#E2E8F0]">
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-24 lg:py-28">
-            <SectionHeader
-              index="02"
-              eyebrow="Learning paths"
-              title={<>A clear route from first lesson to confident practice.</>}
-              lead="Courses within a discipline, arranged by level, so you always know what to take next."
-            />
-
-            <div role="tablist" aria-label="Learning paths" className="inline-flex flex-wrap gap-1 p-1.5 bg-[#F1F5F9] rounded-full mb-12">
-              {learningPaths.map((p) => (
-                <button
-                  key={p.slug}
-                  role="tab"
-                  aria-selected={p.slug === currentPath.slug}
-                  onClick={() => setActivePath(p.slug)}
-                  className={`h-11 px-5 rounded-full text-[15px] font-semibold transition-all ${
-                    p.slug === currentPath.slug ? 'bg-white text-[#004AAD] shadow-sm' : 'text-[#475569] hover:text-[#111827]'
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative">
-              <ol className={`grid grid-cols-1 sm:grid-cols-2 gap-8 ${currentPath.steps.length >= 4 ? 'lg:grid-cols-4' : currentPath.steps.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
-                {currentPath.steps.map((course, i) => (
-                  <motion.li key={course.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08, duration: 0.5 }} className="relative">
-                    <Link to={`/courses/${course.id}`} className="group block">
-                      <div className="aspect-[16/10] rounded-[18px] overflow-hidden bg-[#E8EFFB] mb-4">
-                        <SafeImage src={cdnImage(course.thumbnail, 640)} srcSet={cdnSrcSet(course.thumbnail, [320, 480, 640, 960])} sizes="(min-width: 1024px) 33vw, 100vw" alt="" className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700" />
-                      </div>
-                      <div className="text-[14px] font-semibold text-[#5E17EB]">{course.level}</div>
-                      <h3 className="mt-1 font-display text-[20px] font-bold leading-snug text-[#111827] group-hover:text-[#004AAD] transition-colors line-clamp-2">
-                        {course.title}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-3 text-[15px] text-[#64748B]">
-                        <span className="inline-flex items-center gap-1"><Clock className="w-4 h-4" />{formatDuration(course.durationHours)}</span>
-                        <span className="inline-flex items-center gap-1"><PlayCircle className="w-4 h-4" />{course.totalLessons} lessons</span>
-                      </div>
-                    </Link>
-                  </motion.li>
-                ))}
-              </ol>
-            </div>
-
-            <div className="mt-12">
-              <Link to={`/courses?category=${currentPath.slug}`} className="ed-btn ed-btn-outlined">
-                See every {currentPath.name} course <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ================================================================
           03 — EDITOR'S SELECTION: asymmetric feature + index
          ================================================================ */}
       {editorsPicks.length > 0 && (
@@ -450,7 +529,7 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Feature */}
             <motion.div {...fadeUp} className="lg:col-span-7">
-              <Link to={`/courses/${editorsPicks[0].id}`} className="group relative block h-full min-h-[460px] rounded-[32px] overflow-hidden bg-[#111827] shadow-lg">
+              <Link to={coursePath(editorsPicks[0])} className="group relative block h-full min-h-[460px] rounded-[32px] overflow-hidden bg-[#111827] shadow-lg">
                 <SafeImage src={cdnImage(editorsPicks[0].thumbnail, 1280)} srcSet={cdnSrcSet(editorsPicks[0].thumbnail, [640, 960, 1280])} sizes="(min-width: 1024px) 50vw, 100vw" alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-[1.03] transition-transform duration-1000" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-[#0B1220]/55 to-transparent" />
                 <div className="relative h-full flex flex-col justify-end p-7 sm:p-10 text-white">
@@ -480,7 +559,7 @@ export const HomePage: React.FC = () => {
               {editorsPicks.slice(1).map((course, i) => (
                 <motion.div key={course.id} {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.08 * (i + 1) }}>
                   <Link
-                    to={`/courses/${course.id}`}
+                    to={coursePath(course)}
                     className="group grid grid-cols-[120px_1fr] sm:grid-cols-[148px_1fr] gap-5 p-3 bg-white rounded-[24px] border border-[#E2E8F0] hover:border-transparent hover:shadow-lg transition-all"
                   >
                     <div className="aspect-square rounded-[18px] overflow-hidden bg-[#E8EFFB]">
@@ -532,7 +611,7 @@ export const HomePage: React.FC = () => {
       )}
 
       {/* Meet your lead tutor */}
-      <LeadTutorSection courseHref={leadCourses[0] ? `/courses/${leadCourses[0].id}` : null} courseCount={leadCourses.length} />
+      <LeadTutorSection courseHref={leadCourses[0] ? coursePath(leadCourses[0]) : null} courseCount={leadCourses.length} />
 
       {/* ================================================================
           05 — CAREER: split composition with photography

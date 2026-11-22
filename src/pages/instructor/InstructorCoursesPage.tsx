@@ -5,6 +5,7 @@ import { Course } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useCartWishlist } from '../../context/CartWishlistContext';
 import { Plus, Edit3, Trash2, Eye, BookOpen, Layers, Clock, AlertCircle } from 'lucide-react';
+import { coursePath } from '../../seo/seoConfig';
 
 export const InstructorCoursesPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -150,7 +151,7 @@ export const InstructorCoursesPage: React.FC = () => {
                         </td>
                         <td className="p-4 text-right space-x-1 whitespace-nowrap">
                           <Link
-                            to={`/courses/${course.id}`}
+                            to={coursePath(course)}
                             className="p-1.5 text-[#64748B] hover:text-[#004AAD] hover:bg-[#EBF3FF] rounded inline-flex"
                             title="Preview Student Page"
                           >

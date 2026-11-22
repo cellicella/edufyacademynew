@@ -18,6 +18,13 @@ interface Props {
   title: string;
   /** Called when the server confirms the lesson is complete (verified watch time). */
   onCompleted?: () => void;
+  /** Called when the video plays to the end (used to continue with the next lesson). */
+  onEnded?: () => void;
+  /**
+   * Start playing as soon as the player is ready (the learner just finished the previous lesson). Uses the Adilo
+   * player's { action: 'play' } message; if the browser blocks it, the learner presses play as usual.
+   */
+  autoPlay?: boolean;
 }
 
 /**
@@ -25,8 +32,14 @@ interface Props {
  * Events handled (Adilo docs): ready, currentTime, play, paused, ended,
  * playbackSpeedChange, resolutionChange, subtitleChange.
  */
-export const AdiloPlayer: React.FC<Props> = ({ lessonId, title, onCompleted }) => {
+export const AdiloPlayer: React.FC<Props> = ({ lessonId, title, onCompleted, onEnded, autoPlay }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Latest callbacks for the message listener (registered once per save function)
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+  const autoPlayRef = useRef(autoPlay);
+  autoPlayRef.current = autoPlay;
+  const autoPlaySent = useRef(false);
   const [access, setAccess] = useState<LessonVideoAccess | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -111,6 +124,10 @@ export const AdiloPlayer: React.FC<Props> = ({ lessonId, title, onCompleted }) =
       switch (data.eventName) {
         case 'ready':
           setReady(true);
+          if (autoPlayRef.current && !autoPlaySent.current) {
+            autoPlaySent.current = true;
+            iframeRef.current?.contentWindow?.postMessage({ action: 'play' }, ADILO_ORIGIN);
+          }
           break;
         case 'play':
           s.playing = true;
@@ -148,6 +165,7 @@ export const AdiloPlayer: React.FC<Props> = ({ lessonId, title, onCompleted }) =
           s.dirty = true;
           save('ended');
           setResumeAt(null);
+          onEndedRef.current?.();
           break;
         case 'playbackSpeedChange':
           if (Number.isFinite(Number(data.rate))) setMeta((m) => ({ ...m, rate: Number(data.rate) }));

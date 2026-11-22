@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   Layers,
   Users,
-  DollarSign,
+  IndianRupee,
   PlusCircle,
   LogOut,
   Compass,
@@ -27,7 +27,7 @@ export const InstructorLayout: React.FC = () => {
     { label: 'Course Management', href: '/instructor/courses', icon: Layers },
     { label: 'Create New Course', href: '/instructor/courses/new', icon: PlusCircle },
     { label: 'Student Enrollees', href: '/instructor/students', icon: Users },
-    { label: 'Earnings & Payouts', href: '/instructor/earnings', icon: DollarSign },
+    { label: 'Earnings & Payouts', href: '/instructor/earnings', icon: IndianRupee },
   ];
 
   return (

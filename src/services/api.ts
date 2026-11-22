@@ -95,12 +95,15 @@ function mapSupabaseCourse(item: any): Course {
     learningOutcomes: Array.isArray(item.learning_outcomes) ? item.learning_outcomes : [],
     requirements: cleanRequirements,
     targetAudience: Array.isArray(item.target_audience) ? item.target_audience : [],
+    seoTitle: typeof item.seo_title === 'string' && item.seo_title.trim() ? item.seo_title.trim() : undefined,
+    seoDescription: typeof item.seo_description === 'string' && item.seo_description.trim() ? item.seo_description.trim() : undefined,
     certificateOffered: true,
     curriculum: [...(item.course_sections || [])]
       .sort((a: any, b: any) => (a.section_order || 0) - (b.section_order || 0))
       .map((sec: any) => ({
         id: sec.id,
         title: sec.title,
+        description: typeof sec.description === 'string' ? sec.description : undefined,
         order: sec.section_order || 1,
         lessons: [...(sec.lessons || [])]
           .sort((a: any, b: any) => (a.lesson_order || 0) - (b.lesson_order || 0))
@@ -247,9 +250,7 @@ export const courseService = {
           .select(`
             *,
             course_sections (
-              id,
-              title,
-              section_order,
+              *,
               lessons ( * )
             ),
             profiles:instructor_id (

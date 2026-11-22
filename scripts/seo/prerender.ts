@@ -77,6 +77,8 @@ interface CourseRow {
   id: string | number; title?: Str; subtitle?: Str; description?: Str; category?: Str; level?: Str; language?: Str;
   price?: unknown; original_price?: unknown; duration_hours?: unknown; total_lessons?: unknown; thumbnail_url?: Str;
   learning_outcomes?: unknown; prerequisites?: unknown; updated_at?: Str; created_at?: Str; is_demo?: boolean | null;
+  slug?: Str; target_audience?: unknown; seo_title?: Str; seo_description?: Str;
+  course_sections?: { title?: Str; description?: Str; section_order?: number | null; lessons?: { title?: Str; lesson_order?: number | null; duration_minutes?: number | null; is_free_preview?: boolean | null }[] | null }[] | null;
   profiles?: { full_name?: Str; headline?: Str } | { full_name?: Str; headline?: Str }[] | null;
 }
 interface PostRow {
@@ -100,6 +102,9 @@ export function mapCourseRow(r: CourseRow): SeoCourse {
   const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
   return {
     id: String(r.id),
+    slug: r.slug ? String(r.slug).trim() || null : null,
+    seoTitle: r.seo_title || null,
+    seoDescription: r.seo_description || null,
     title: String(r.title || '').trim() || 'Untitled course',
     subtitle: r.subtitle || null,
     description: r.description || null,
@@ -116,6 +121,18 @@ export function mapCourseRow(r: CourseRow): SeoCourse {
     updatedAt: r.updated_at || r.created_at || null,
     instructorName: p?.full_name || null,
     instructorTitle: p?.headline || null,
+    audience: arr(r.target_audience),
+    sections: [...(r.course_sections || [])]
+      .sort((a, b) => (a.section_order || 0) - (b.section_order || 0))
+      .map((s) => ({
+        title: String(s.title || '').trim(),
+        description: s.description ? String(s.description) : null,
+        lessons: [...(s.lessons || [])]
+          .sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0))
+          .map((l) => ({ title: String(l.title || '').trim(), minutes: num(l.duration_minutes), freePreview: !!l.is_free_preview }))
+          .filter((l) => l.title),
+      }))
+      .filter((s) => s.title && s.lessons.length),
   };
 }
 
@@ -135,7 +152,7 @@ export async function fetchSeoData(supabaseUrl: string, key: string): Promise<Se
   const base = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1`;
   const empty: SeoData = { courses: [], posts: [], bundles: [], categories: [], instructors: [], settings: {}, ok: false };
   const settled = await Promise.allSettled([
-    getJson(`${base}/courses?select=id,title,subtitle,description,category,level,language,price,original_price,duration_hours,total_lessons,thumbnail_url,learning_outcomes,prerequisites,updated_at,created_at,is_demo,profiles:instructor_id(full_name,headline)&is_published=eq.true&order=created_at.desc`, key),
+    getJson(`${base}/courses?select=*,profiles:instructor_id(full_name,headline),course_sections(*,lessons(title,lesson_order,duration_minutes,is_free_preview))&is_published=eq.true&order=created_at.desc`, key),
     getJson(`${base}/blog_posts?select=slug,title,excerpt,content_html,cover_image_url,category,author_name,published_at,updated_at,seo_title,seo_description&status=eq.published&published_at=lte.${encodeURIComponent(new Date().toISOString())}&order=published_at.desc&limit=500`, key),
     getJson(`${base}/bundles?select=slug,title,subtitle,description,thumbnail_url,price,updated_at,bundle_courses(course_id)&is_published=eq.true`, key),
     getJson(`${base}/categories?select=slug,name,description&is_active=eq.true&order=position`, key),
@@ -231,6 +248,24 @@ const price = (v: number) => (v > 0 ? `₹${Math.round(v).toLocaleString('en-IN'
 const courseItem = (c: SeoCourse) => `<li>${link(coursePath(c), readableTitle(c.title))}${c.subtitle ? ` — ${esc(clip(stripHtml(c.subtitle), 140))}` : ''} (${price(c.price)})</li>`;
 const page = (main: string) => `${NAV}<main>${main}</main>${FOOTER}`;
 
+/** Marker in public/.htaccess where the build writes permanent redirects from old course addresses. */
+export const REDIRECT_MARKER = '# @EDUFY_COURSE_REDIRECTS';
+const regexEscape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** 301 redirects from /courses/<id> to the course's readable address (only where the two differ). */
+export function courseRedirectRules(courses: Pick<SeoCourse, 'id' | 'slug'>[]): string[] {
+  return courses
+    .filter((c) => c.slug && c.slug !== c.id && /^[A-Za-z0-9_-]+$/.test(c.id) && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.slug))
+    .map((c) => `RewriteRule ^courses/${regexEscape(c.id)}/?$ ${coursePath(c)} [R=301,L]`);
+}
+
+/** Puts the redirect rules into the built .htaccess at the marker (unchanged when the marker is missing). */
+export function withCourseRedirects(htaccess: string, rules: string[]): string {
+  if (!htaccess.includes(REDIRECT_MARKER)) return htaccess;
+  const block = rules.length ? rules.map((r) => `  ${r}`).join('\n') : '  # (no course redirects)';
+  return htaccess.replace(REDIRECT_MARKER, `${REDIRECT_MARKER} (generated at build time)\n${block}`);
+}
+
 export function buildSeoFiles(template: string, d: SeoData): Map<string, string> {
   const files = new Map<string, string>();
   const robots = /noindex/i.test(d.settings.robots || '') ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
@@ -280,6 +315,10 @@ export function buildSeoFiles(template: string, d: SeoData): Map<string, string>
       (c.learningOutcomes?.length ? `<section><h2>What you’ll learn</h2><ul>${c.learningOutcomes.map((o) => `<li>${esc(o)}</li>`).join('')}</ul></section>` : '') +
       (stripHtml(c.description) ? `<section><h2>About this course</h2><p>${esc(stripHtml(c.description))}</p></section>` : '') +
       (c.requirements?.length ? `<section><h2>Prerequisites</h2><ul>${c.requirements.map((o) => `<li>${esc(o)}</li>`).join('')}</ul></section>` : '') +
+      (c.audience?.length ? `<section><h2>Who this course is for</h2><ul>${c.audience.map((o) => `<li>${esc(o)}</li>`).join('')}</ul></section>` : '') +
+      (c.sections?.length
+        ? `<section><h2>Course curriculum</h2>${c.sections.map((s) => `<h3>${esc(s.title)}</h3>${s.description ? `<p>${esc(s.description)}</p>` : ''}<ol>${s.lessons.map((l) => `<li>${esc(l.title)}${l.minutes ? ` (${l.minutes} min)` : ''}${l.freePreview ? ' – free preview' : ''}</li>`).join('')}</ol>`).join('')}</section>`
+        : '') +
       `<p>${link(p, `Enroll in ${name}`)}</p></article>` +
       (related.length ? `<section><h2>More courses in ${esc(c.category)}</h2><ul>${related.map(courseItem).join('')}</ul></section>` : '') +
       `<p>${link('/courses', 'Browse all online courses')}</p>`;
@@ -354,6 +393,11 @@ export function seoPrerender(opts: { supabaseUrl?: string; supabaseKey?: string 
           const file = path.join(outDir, rel);
           fs.mkdirSync(path.dirname(file), { recursive: true });
           fs.writeFileSync(file, content);
+        }
+        // Old /courses/<id> addresses → permanent redirect to the readable course address
+        const htaccessFile = path.join(outDir, '.htaccess');
+        if (fs.existsSync(htaccessFile)) {
+          fs.writeFileSync(htaccessFile, withCourseRedirects(fs.readFileSync(htaccessFile, 'utf8'), courseRedirectRules(data.courses)));
         }
         const urls = (files.get('sitemap.xml')!.match(/<loc>/g) || []).length;
         if (/noindex/i.test(data.settings.robots || '')) {

@@ -26,6 +26,10 @@ ErrorDocument 404 /404.html
   # 2. API paths never fall through to the website (the API lives on api.edufyacademy.com)
   RewriteRule ^api(/|$) - [R=404,L]
 
+  # 2b. Old course addresses (/courses/<id>) → the course's readable address. Rules are written here by the
+  #     build (scripts/seo/prerender.ts) from the published courses; keep the marker line below.
+  # @EDUFY_COURSE_REDIRECTS
+
   # 3. SEO: public pages have a prerendered HTML file in /seo (title, description, canonical, Open Graph,
   #    structured data and readable content — built by scripts/seo/prerender.ts). The React app starts from it
   #    exactly as from index.html. When a page has no such file the normal app shell below is used.

@@ -30,6 +30,10 @@ import {
   X,
   Sparkles,
 } from 'lucide-react';
+import { formatINR } from '../../utils/currency';
+import { coursePath } from '../../seo/seoConfig';
+import { UpNextOverlay } from '../../components/student/UpNextOverlay';
+import { AUTOPLAY_COUNTDOWN_SECONDS, lessonToAutoplay, readAutoplayPref, writeAutoplayPref } from '../../lib/autoplayNext';
 
 export const LearningPlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -45,6 +49,10 @@ export const LearningPlayerPage: React.FC = () => {
   const [claimedCert, setClaimedCert] = useState<Certificate | null>(null);
   const [claimingCert, setClaimingCert] = useState(false);
   const [showCertModal, setShowCertModal] = useState(false);
+  // Autoplay next lesson: learner preference, the "Up next" countdown, and the lesson whose video should start itself
+  const [autoAdvance, setAutoAdvance] = useState<boolean>(() => readAutoplayPref());
+  const [upNext, setUpNext] = useState<Lesson | null>(null);
+  const [autoPlayLessonId, setAutoPlayLessonId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const { isEnrolled, isProcessingPayment, showToast } = useCartWishlist();
@@ -134,16 +142,42 @@ export const LearningPlayerPage: React.FC = () => {
     }
   };
 
+  /** Opens a lesson (and its section in the curriculum). `autoplay`: start its video by itself. */
+  const openLesson = (lesson: Lesson, autoplay = false) => {
+    setUpNext(null);
+    setAutoPlayLessonId(autoplay ? lesson.id : null);
+    setCurrentLesson(lesson);
+    const sectionId = allLessons.find((item) => item.lesson.id === lesson.id)?.sectionId;
+    if (sectionId) setExpandedSections((prev) => ({ ...prev, [sectionId]: true }));
+  };
+
   const handleNextLesson = () => {
     if (nextLesson) {
-      setCurrentLesson(nextLesson);
+      openLesson(nextLesson);
     }
   };
 
   const handlePrevLesson = () => {
     if (prevLesson) {
-      setCurrentLesson(prevLesson);
+      openLesson(prevLesson);
     }
+  };
+
+  // The video finished: offer the next lesson with a short countdown (when autoplay is on and it can be opened)
+  const handleVideoEnded = () => {
+    const next = lessonToAutoplay(
+      allLessons.map((item) => item.lesson),
+      currentLesson.id,
+      { enabled: autoAdvance, enrolled: userIsEnrolled }
+    );
+    if (next) setUpNext(next);
+  };
+
+  const toggleAutoAdvance = () => {
+    const on = !autoAdvance;
+    setAutoAdvance(on);
+    writeAutoplayPref(on);
+    if (!on) setUpNext(null);
   };
 
   const handleToggleComplete = () => {
@@ -192,7 +226,7 @@ export const LearningPlayerPage: React.FC = () => {
           </div>
 
           <Link
-            to={`/courses/${course.id}`}
+            to={coursePath(course)}
             className="text-xs text-slate-400 hover:text-white"
           >
             Course Details
@@ -221,7 +255,7 @@ export const LearningPlayerPage: React.FC = () => {
                   className="px-6 py-3 text-sm font-bold text-white bg-[#004AAD] hover:bg-[#003B8B] rounded-full transition-colors shadow-lg flex items-center justify-center gap-2 mx-auto"
                 >
                   <Lock className="w-4 h-4" />
-                  <span>{isProcessingPayment ? 'Processing...' : `Enroll Now via Razorpay ($${course.price.toFixed(2)})`}</span>
+                  <span>{isProcessingPayment ? 'Processing...' : `Enroll Now via Razorpay (${formatINR(course.price)})`}</span>
                 </button>
               </div>
             ) : currentLesson.type === 'quiz' ? (
@@ -245,6 +279,8 @@ export const LearningPlayerPage: React.FC = () => {
                 key={currentLesson.id}
                 lessonId={currentLesson.id}
                 title={currentLesson.title}
+                autoPlay={autoPlayLessonId === currentLesson.id}
+                onEnded={handleVideoEnded}
                 onCompleted={() => {
                   setLessonCompletedLocal(course.id, currentLesson.id);
                   showToast('Lesson complete — great work!', 'success');
@@ -335,6 +371,16 @@ export const LearningPlayerPage: React.FC = () => {
                 </div>
               </>
             )}
+            {upNext && upNext.id !== currentLesson.id && (
+              <UpNextOverlay
+                key={upNext.id}
+                title={upNext.title}
+                kind={upNext.type === 'quiz' ? 'Quiz' : upNext.type === 'video' ? 'Video lesson' : 'Lesson'}
+                seconds={AUTOPLAY_COUNTDOWN_SECONDS}
+                onPlayNow={() => openLesson(upNext, true)}
+                onCancel={() => setUpNext(null)}
+              />
+            )}
           </div>
 
           {/* Lesson Navigation Header & Complete Button */}
@@ -348,7 +394,20 @@ export const LearningPlayerPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoAdvance}
+                onClick={toggleAutoAdvance}
+                title="Play the next lesson automatically when a video ends"
+                className="inline-flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-[#334155] rounded-lg hover:bg-slate-100"
+              >
+                <span className={`relative inline-block w-8 h-[18px] rounded-full transition-colors ${autoAdvance ? 'bg-[#004AAD]' : 'bg-slate-300'}`}>
+                  <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-[left] ${autoAdvance ? 'left-[16px]' : 'left-[2px]'}`} />
+                </span>
+                <span>Autoplay</span>
+              </button>
               <button
                 disabled={!prevLesson}
                 onClick={handlePrevLesson}
@@ -608,7 +667,7 @@ export const LearningPlayerPage: React.FC = () => {
                         return (
                           <button
                             key={lesson.id}
-                            onClick={() => setCurrentLesson(lesson)}
+                            onClick={() => openLesson(lesson)}
                             className={`w-full p-3 text-left flex items-start gap-3 transition-colors ${
                               isCurrent
                                 ? 'bg-[#EBF3FF] text-[#004AAD]'

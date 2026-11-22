@@ -66,7 +66,7 @@ export const CourseDetailsPage: React.FC = () => {
   // Search metadata from the real course data (same text as the prerendered page)
   const seoCourse: SeoCourse | null = course
     ? {
-        id: course.id, title: course.title, subtitle: course.subtitle, description: course.description, category: course.category,
+        id: course.id, slug: course.slug, title: course.title, seoTitle: course.seoTitle, seoDescription: course.seoDescription, subtitle: course.subtitle, description: course.description, category: course.category,
         level: course.level, language: course.language, price: course.price, originalPrice: course.originalPrice,
         durationHours: course.durationHours, totalLessons: course.totalLessons, thumbnail: course.thumbnail,
         learningOutcomes: course.learningOutcomes, requirements: course.requirements,
@@ -334,18 +334,19 @@ export const CourseDetailsPage: React.FC = () => {
                         onClick={() => toggleSection(section.id)}
                         className="w-full bg-[#F8FAFC] hover:bg-[#F1F5F9] p-4 text-left flex items-center justify-between transition-colors"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
                           <ChevronDown
-                            className={`w-4 h-4 text-[#64748B] transition-transform duration-200 ${
+                            className={`w-4 h-4 mt-0.5 shrink-0 text-[#64748B] transition-transform duration-200 ${
                               isExpanded ? 'rotate-180' : ''
                             }`}
                           />
-                          <span className="font-display text-sm font-bold text-[#111827]">
-                            {section.title}
+                          <span className="min-w-0">
+                            <span className="block font-display text-sm font-bold text-[#111827]">{section.title}</span>
+                            {section.description && <span className="block mt-0.5 text-[13px] font-normal text-[#64748B] leading-snug">{section.description}</span>}
                           </span>
                         </div>
-                        <div className="text-xs text-[#64748B] tabular-nums font-medium">
-                          {section.lessons.length} lessons · {totalSecMins}m
+                        <div className="text-xs text-[#64748B] tabular-nums font-medium shrink-0 pl-3">
+                          {section.lessons.length} {section.lessons.length === 1 ? 'lesson' : 'lessons'} · {totalSecMins}m
                         </div>
                       </button>
 

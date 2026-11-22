@@ -7,6 +7,7 @@ import { formatDuration, calculateDiscountPercent } from '../../utils/courseUtil
 import { cdnImage, cdnSrcSet, cdnAvatar } from '../../lib/cdnImage';
 import { displayInstructor } from '../../config/leadInstructor';
 import { CoursePurchaseButton } from '../course/CoursePurchase';
+import { coursePath } from '../../seo/seoConfig';
 
 interface CourseCardProps {
   course: Course;
@@ -71,7 +72,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   const isFavorited = isInWishlist(course.id);
   const enrolled = isEnrolled(course.id);
   const discountPercent = calculateDiscountPercent(course.price, course.originalPrice);
-  const href = `/courses/${course.id}`;
+  const href = coursePath(course);
   const instructor = displayInstructor(course.instructor);
 
   const wishlistButton = (

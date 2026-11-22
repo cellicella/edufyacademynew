@@ -66,6 +66,8 @@ export interface Lesson {
 export interface CourseSection {
   id: string;
   title: string;
+  /** Short overview shown under the section title (optional). */
+  description?: string;
   order: number;
   lessons: Lesson[];
 }
@@ -131,6 +133,9 @@ export interface Course {
   certificateOffered: boolean;
   isPublished?: boolean;
   status?: CourseStatus;
+  /** Search-result title and description (optional; generated from the course when empty). */
+  seoTitle?: string;
+  seoDescription?: string;
   instructorId?: string;
 }
 

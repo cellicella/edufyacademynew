@@ -11,7 +11,7 @@ import { cdnImage, cdnSrcSet } from '../../lib/cdnImage';
 import { displayInstructor } from '../../config/leadInstructor';
 import { useGuestRedirect, useResumePurchase } from '../../hooks/usePurchaseFlow';
 import { useSeo } from '../../lib/seo';
-import { breadcrumbLd, bundlePath, bundleSeo, readableTitle } from '../../seo/seoConfig';
+import { breadcrumbLd, bundlePath, bundleSeo, coursePath, readableTitle } from '../../seo/seoConfig';
 
 export const BundleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -120,7 +120,7 @@ export const BundleDetailsPage: React.FC = () => {
           <ol className="mt-6 space-y-4">
             {bundle.courses.map((c, i) => (
               <li key={c.id}>
-                <Link to={`/courses/${c.id}`} className="group grid grid-cols-[auto_120px_1fr] gap-5 items-center p-3 bg-white rounded-[22px] border border-[#E2E8F0] hover:shadow-md hover:border-transparent transition">
+                <Link to={coursePath(c)} className="group grid grid-cols-[auto_120px_1fr] gap-5 items-center p-3 bg-white rounded-[22px] border border-[#E2E8F0] hover:shadow-md hover:border-transparent transition">
                   <span className="font-display text-[15px] font-bold text-[#94A3B8] w-7 text-center">{String(i + 1).padStart(2, '0')}</span>
                   <img src={cdnImage(c.thumbnail, 240)} alt="" className="w-[120px] aspect-[4/3] object-cover rounded-[14px]" />
                   <div className="min-w-0 pr-2">

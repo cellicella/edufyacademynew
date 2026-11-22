@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Download, TrendingUp, CreditCard, ShieldCheck, Receipt } from 'lucide-react';
+import { IndianRupee, Download, TrendingUp, CreditCard, ShieldCheck, Receipt } from 'lucide-react';
 import { adminService } from '../../services/api';
+import { formatINR } from '../../utils/currency';
 
 export const AdminReportsPage: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -65,7 +66,7 @@ export const AdminReportsPage: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Platform Gross Volume</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
-            ${totalGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatINR(totalGross, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">Live payments recorded</div>
         </div>
@@ -73,7 +74,7 @@ export const AdminReportsPage: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Platform Commission (10%)</div>
           <div className="font-display text-2xl font-bold text-[#004AAD] mt-1 tabular-nums">
-            ${totalFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatINR(totalFee, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">Platform operations net take</div>
         </div>
@@ -81,7 +82,7 @@ export const AdminReportsPage: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B]">Instructor Direct Disbursements (90%)</div>
           <div className="font-display text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
-            ${totalPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatINR(totalPayout, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">Allocated to instructor payouts</div>
         </div>
@@ -120,11 +121,11 @@ export const AdminReportsPage: React.FC = () => {
                     <td className="p-4 text-[#111827] font-medium">{t.user}</td>
                     <td className="p-4 text-[#64748B] max-w-xs truncate">{t.course}</td>
                     <td className="p-4 font-mono tabular-nums font-bold text-[#111827]">
-                      ${t.amount.toFixed(2)}
+                      {formatINR(t.amount, 2)}
                     </td>
-                    <td className="p-4 font-mono tabular-nums text-[#004AAD]">${t.fee.toFixed(2)}</td>
+                    <td className="p-4 font-mono tabular-nums text-[#004AAD]">{formatINR(t.fee, 2)}</td>
                     <td className="p-4 font-mono tabular-nums font-semibold text-emerald-600">
-                      ${t.payout.toFixed(2)}
+                      {formatINR(t.payout, 2)}
                     </td>
                     <td className="p-4 text-right">
                       <span className="bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded text-[12px]">

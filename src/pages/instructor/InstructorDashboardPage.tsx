@@ -3,7 +3,7 @@ import { instructorService, courseService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Course } from '../../types';
 import {
-  DollarSign,
+  IndianRupee,
   Users,
   Star,
   BookOpen,
@@ -13,6 +13,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatINR } from '../../utils/currency';
 
 export const InstructorDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -56,7 +57,7 @@ export const InstructorDashboardPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0]">
           <div className="text-xs text-[#64748B] font-medium">Total Lifetime Earnings</div>
           <div className="font-display text-2xl font-bold text-[#111827] mt-1 tabular-nums">
-            ${loading ? '...' : (metrics?.totalEarnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {loading ? '...' : formatINR(metrics?.totalEarnings ?? 0, 2)}
           </div>
           <div className="text-[13px] text-[#64748B] mt-1">
             From captured student enrollments
@@ -134,7 +135,7 @@ export const InstructorDashboardPage: React.FC = () => {
                     <tr key={c.id} className="hover:bg-[#F8FAFC]">
                       <td className="py-3 font-bold text-[#111827] max-w-xs truncate">{c.title}</td>
                       <td className="py-3 text-[#64748B]">{c.category}</td>
-                      <td className="py-3 font-mono font-bold text-[#111827]">${c.price.toFixed(2)}</td>
+                      <td className="py-3 font-mono font-bold text-[#111827]">{formatINR(c.price, 2)}</td>
                       <td className="py-3 font-mono">{c.enrolledCount.toLocaleString()}</td>
                       <td className="py-3 flex items-center gap-1">
                         <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
@@ -166,7 +167,7 @@ export const InstructorDashboardPage: React.FC = () => {
                 <div key={sale.id} className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]/60 space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-[#111827]">{sale.studentName}</span>
-                    <span className="font-mono font-bold text-emerald-600">+${sale.amount.toFixed(2)}</span>
+                    <span className="font-mono font-bold text-emerald-600">+{formatINR(sale.amount, 2)}</span>
                   </div>
                   <div className="text-[13px] text-[#64748B] truncate">{sale.courseTitle}</div>
                   <div className="text-[12px] text-[#94A3B8]">{sale.date}</div>
