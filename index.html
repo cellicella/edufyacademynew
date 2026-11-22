@@ -22,6 +22,23 @@
         w.edufyPixelPageView = path;
       })(window, document, location.pathname);
     </script>
+    <!-- Google Tag Manager (GTM-PD3JV5QC → Google Analytics 4). Same snippet as provided by Google, loaded on every
+         page except the sign-in callback, password reset and dashboard pages (their address can carry sign-in codes).
+         Page changes inside the app are recorded by the container's history-change trigger / GA4 enhanced measurement,
+         so the app sends no page views of its own. -->
+    <script>
+      (function (w, d, path) {
+        if (/^\/(auth|reset-password|forgot-password|admin|instructor)(\/|$)/i.test(path)) return;
+        var s = d.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-PD3JV5QC';
+        d.head.appendChild(s);
+        w.dataLayer = w.dataLayer || [];
+        function gtag() { w.dataLayer.push(arguments); }
+        w.gtag = gtag;
+        gtag('js', new Date());
+      })(window, document, location.pathname);
+    </script>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/edufy-logo-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/brand/edufy-logo-192.png" />
